@@ -12,41 +12,39 @@ def _joinStr(args):
 		s.append(u(i))
 	return u' '.join(s).strip()
 
-_mainLog = logging.getLogger('fetchy')
-def log(level, *args, **kwargs):
-	if _logEnabled:
-		_mainLog.log(level, _joinStr(args), **kwargs)
-def info(*args, **kwargs):
-	log(logging.INFO, *args, **kwargs)
-def warn(*args, **kwargs):
-	log(logging.WARN, *args, **kwargs)
-def error(*args, **kwargs):
-	log(logging.ERROR, *args, **kwargs)
-_allLogs.append(_mainLog)
+class _littleLogger:
+	def __init__(self, name):
+		self._log = logging.getLogger(name)
+		_allLogs.append(self)
+	def log(self, level, *args, **kwargs):
+		if _logEnabled:
+			self._log.log(level, _joinStr(args), **kwargs)
+	def info(self, *args, **kwargs):
+		self.log(logging.INFO, *args, **kwargs)
+	def warn(self, *args, **kwargs):
+		self.log(logging.WARN, *args, **kwargs)
+	def error(self, *args, **kwargs):
+		self.log(logging.ERROR, *args, **kwargs)
+	def setLevel(self, level):
+		self._log.setLevel(level)
 
-_serverLog = logging.getLogger('server')
-def serverLog(level, *args, **kwargs):
-	if _logEnabled:
-		_serverLog.log(level, _joinStr(args), **kwargs)
-def serverInfo(*args, **kwargs):
-	serverLog(logging.INFO, *args, **kwargs)
-def serverWarn(*args, **kwargs):
-	serverLog(logging.WARN, *args, **kwargs)
-def serverError(*args, **kwargs):
-	serverLog(logging.ERROR, *args, **kwargs)
-_allLogs.append(_serverLog)
+_mainLogger = _littleLogger('main')
+log = _mainLogger.log
+info = _mainLogger.info
+warn = _mainLogger.warn
+error = _mainLogger.error
 
-_clientLog = logging.getLogger('client')
-def clientLog(level, *args, **kwargs):
-	if _logEnabled:
-		_clientLog.log(level, _joinStr(args), **kwargs)
-def clientInfo(*args, **kwargs):
-	clientLog(logging.INFO, *args, **kwargs)
-def clientWarn(*args, **kwargs):
-	clientLog(logging.WARN, *args, **kwargs)
-def clientError(*args, **kwargs):
-	clientLog(logging.ERROR, *args, **kwargs)
-_allLogs.append(_clientLog)
+_serverLogger = _littleLogger('server')
+serverLog = _serverLogger.log
+serverInfo = _serverLogger.info
+serverWarn = _serverLogger.warn
+serverError = _serverLogger.error
+
+_clientLogger = _littleLogger('client')
+clientLog = _clientLogger.log
+clientInfo = _clientLogger.info
+clientWarn = _clientLogger.warn
+clientError = _clientLogger.error
 
 def setLogVerbose(verbose):
 	level = logging.WARN

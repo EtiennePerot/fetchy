@@ -1,5 +1,6 @@
 from lib.utils import *
 from log import *
+import server
 
 def run(*args, **kwargs):
 	info('Starting with args', args, 'and kwargs', kwargs)
@@ -18,3 +19,4 @@ def run(*args, **kwargs):
 	setLogVerbose(config['verbose'])
 	setLogQuiet(config['quiet'])
 	info('Final configuration:', config)
+	server.run(config['port'])
