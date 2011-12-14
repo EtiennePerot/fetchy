@@ -15,7 +15,3 @@ class _runClient:
         _client = client(url)
         thread = threading.Thread(target=_client.run(), args=())
         thread.start()
-
-
-
-
