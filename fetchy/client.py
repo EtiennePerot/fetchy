@@ -2,13 +2,7 @@ from lib.utils import *
 import urllib, urllib2, threading
 import fetchy
 import zlib, gzip
-try:
-    from io import BytesIO as _StringIO
-except ImportError:
-    try:
-        from cStringIO import StringIO as _StringIO
-    except ImportError:
-        from StringIO import StringIO as _StringIO
+from _StringIO import StringIO
 
 class downloadResult:
 	def __init__(self, data, finalUrl, status, headers):
@@ -90,7 +84,7 @@ class _downloader(threading.Thread):
 			contents = self._feed(zlib.decompress(handle.read()))
 		elif contentEncoding is not None and 'gzip' in contentEncoding:
 			# Gzip mode; can only do it in one shot
-			contents = self._feed(gzip.GzipFile(fileobj=_StringIO(handle.read())).read())
+			contents = self._feed(gzip.GzipFile(fileobj=StringIO(handle.read())).read())
 		else:
 			# Identity mode
 			while True:
@@ -106,7 +100,7 @@ class _downloader(threading.Thread):
 			self._onSuccess(self, result)
 		return result
 
-def setConfiguration(bufferSize, timeout):
+def init(bufferSize, timeout):
 	_downloader._bufferSize = bufferSize
 	_downloader._timeout = timeout
 

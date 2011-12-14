@@ -46,6 +46,12 @@ clientInfo = _clientLogger.info
 clientWarn = _clientLogger.warn
 clientError = _clientLogger.error
 
+_cacheLogger = _littleLogger('cache')
+cacheLog = _cacheLogger.log
+cacheInfo = _cacheLogger.info
+cacheWarn = _cacheLogger.warn
+cacheError = _cacheLogger.error
+
 def setLogVerbose(verbose):
 	level = logging.WARN
 	if verbose:

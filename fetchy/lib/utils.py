@@ -19,3 +19,16 @@ def u(s):
 			return u(str(s))
 		except:
 			return s
+
+class curry:
+	def __init__(self, func, *args, **kwargs):
+		self._func = func
+		self._pending = args[:]
+		self._kwargs = kwargs
+	def __call__(self, *args, **kwargs):
+		if kwargs and self._kwargs:
+			kw = self._kwargs.copy()
+			kw.update(kwargs)
+		else:
+			kw = kwargs or self._kwargs
+		return self._func(*(self._pending + args), **kw)
