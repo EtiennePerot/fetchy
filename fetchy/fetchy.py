@@ -1,6 +1,14 @@
 from lib.utils import *
 from log import *
+import client
 import server
+
+def handleRequest(url, headers, data=None):
+	response = client.fetch(url, headers=headers, data=data)
+	if response is None:
+		return None
+	else:
+		return response.getFullResponse()
 
 def run(*args, **kwargs):
 	info('Starting with args', args, 'and kwargs', kwargs)
@@ -19,4 +27,8 @@ def run(*args, **kwargs):
 	setLogVerbose(config['verbose'])
 	setLogQuiet(config['quiet'])
 	info('Final configuration:', config)
-	server.run(config['port'])
+	client.setConfiguration(config['clientBufferSize'], config['httpTimeout'])
+	server.run(config['port'], config['httpTimeout'], config['serverBufferSize'])
+
+def getVersion():
+	return '0.1'
