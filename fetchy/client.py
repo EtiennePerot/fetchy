@@ -1,6 +1,6 @@
 from lib.utils import *
 import urllib, urllib2, threading
-import fetchy
+import fetchy, httpHeaders
 import zlib, gzip
 from lib._StringIO import StringIO
 
@@ -25,11 +25,14 @@ class downloadResult:
 	def getHeaders(self):
 		return self._headers
 	def getFullResponse(self):
-		response = 'HTTP/1.0 ' + str(self._status) + '\r\n'
+		response = 'HTTP/1.1 ' + str(self._status) + '\r\n'
 		response += 'Server: fetchy/' + fetchy.getVersion() + '\r\n'
+		response += 'Connection: Keep-Alive\r\n'
 		if self._contentType is not None:
 			response += 'Content-Type: ' + self._contentType + '\r\n'
-		if self._data is not None:
+		if self._data is None:
+			response += 'Content-Length: 0\r\n'
+		else:
 			response += 'Content-Length: ' + str(len(self._data)) + '\r\n'
 			response += '\r\n' + self._data
 		return response
@@ -45,9 +48,9 @@ class _downloader(threading.Thread):
 		super(_downloader, self).__init__()
 		self._url = url
 		if headers is None:
-			self._headers = {}
+			self._headers = httpHeaders.headers()
 		else:
-			self._headers = headers
+			self._headers = httpHeaders.headers(headers)
 		self._headers['Accept-Encoding'] = 'gzip, deflate, identity'
 		self._data = data
 		self._onSuccess = onSuccess
@@ -72,7 +75,7 @@ class _downloader(threading.Thread):
 		return data
 	def run(self):
 		try:
-			handle = urllib2.urlopen(urllib2.Request(self._url, self._getPostData(), self._headers), timeout=_downloader._timeout)
+			handle = urllib2.urlopen(urllib2.Request(self._url, self._getPostData(), self._headers.asDictionary()), timeout=_downloader._timeout)
 		except urllib2.HTTPError, e:
 			return self._fail(e.code)
 		except:
