@@ -2,9 +2,9 @@ from lib import BeautifulSoup
 import client
 
 def parse(url):
-    client.fetchToFunction(url, processHTML)
+    client.asyncFetch(url, onSuccess=processHTML)
 def processHTML(html):
-    soup = BeautifulSoup.BeautifulSoup(html)
+    soup = BeautifulSoup.BeautifulSoup(html.getData())
     javascriptContent = soup.findAll('script')
     cssContent = soup.findAll('link', rel='stylesheet')
     images = soup.findAll('img')

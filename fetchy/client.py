@@ -97,7 +97,7 @@ class _downloader(threading.Thread):
 				contents += self._feed(data)
 		result = downloadResult(contents, handle.geturl(), handle.getcode(), handle.info().headers)
 		if self._onSuccess is not None:
-			self._onSuccess(self, result)
+			self._onSuccess(result)
 		return result
 
 def init(bufferSize, timeout):
