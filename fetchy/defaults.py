@@ -13,9 +13,11 @@ config = {
 	},
 	'cache': { # Options related to the cache
 		'gzipCompression': 6, # Strength of gzip compression for cached files (from 0 (don't use compression) to 9 (best compression))
+		'gzipMinSize': 128, # Minimum size (in bytes) for gzip compression to be valuable
+		'gzipMaxSize': 128 * 1024 * 1024, # Maximum size (in bytes) after which gzip compression becomes too expensive (large files are likely to be in a compressed format already)
 		'diskCacheSize': 128 * 1024 * 1024, # Disk cache size (bytes)
 		'memoryCacheSize': 32 * 1024 * 1024, # Memory cache size (bytes)
 		'directory': '%tmp%/fetchy', # Location of the disk cache ("%tmp%" will be replaced by the system's temporary directory)
-		'bufferSize': 32768,
+		'bufferSize': 32768, # Buffer size for cache I/O operations
 	}
 }
