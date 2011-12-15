@@ -9,13 +9,7 @@ class downloadResult:
 		self._data = data
 		self._finalUrl = finalUrl
 		self._status = status
-		self._contentType = None
-		for h in headers:
-			i = h.find(':')
-			if i != -1:
-				headerName = h[:i].strip().lower()
-				if headerName == 'content-type':
-					self._contentType = h[i + 1:].strip()
+		self._contentType = headers.getContentType()
 	def getData(self):
 		return self._data
 	def getFinalUrl(self):
@@ -61,7 +55,7 @@ class _downloader(threading.Thread):
 			self._onFailure(self, errorCode)
 		if errorCode is None:
 			return None
-		return downloadResult(None, None, errorCode, {})
+		return downloadResult(None, None, errorCode, httpHeaders.headers())
 	def _getPostData(self):
 		if self._data is None:
 			return None
@@ -98,7 +92,7 @@ class _downloader(threading.Thread):
 				if not data:
 					break
 				contents += self._feed(data)
-		result = downloadResult(contents, handle.geturl(), handle.getcode(), handle.info().headers)
+		result = downloadResult(contents, handle.geturl(), handle.getcode(), httpHeaders.headers(handle.info().headers))
 		if self._onSuccess is not None:
 			self._onSuccess(result)
 		return result

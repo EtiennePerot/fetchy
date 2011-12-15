@@ -1,4 +1,5 @@
 from lib.utils import *
+import itertools
 
 class _header:
 	def __init__(self, *args):
@@ -17,9 +18,9 @@ class _header:
 			# See http://homepage.ntlworld.com./jonathan.deboynepollard/FGA/web-proxy-connection-header.html
 			self._header = u'connection'
 	def getHeader(self):
-		return self._header
+		return self._header.encode('utf8')
 	def getValue(self):
-		return self._value
+		return self._value.encode('utf8')
 	def copy(self):
 		return _header(self._header, self._value)
 	def __str__(self):
@@ -46,7 +47,7 @@ class headers:
 			if type(arg) in (type(''), type(u'')):
 				self._parseHeaders(u(arg))
 			elif type(arg) in (type([]), type(())):
-				self.add(arg)
+				self.add(*arg)
 			elif isinstance(arg, _header):
 				self._addHeader(arg)
 			elif isinstance(arg, headers):
@@ -76,14 +77,14 @@ class headers:
 	def isKeepAlive(self):
 		headerVal = self.get(u'connection')
 		if headerVal is not None:
-			return headerVal.lower() == u'keep-alive'
+			return headerVal.lower() == 'keep-alive'
 		if self._httpVersion is None:
 			return None # Unknown
 		return self._httpVersion != 'HTTP/1.0' # False by default in HTTP/1.0, True by default in 1.1
 	def asDictionary(self):
 		d = {}
 		for h in self._headers:
-			d[h.getHeader().encode('utf8')] = h.getValue().encode('utf8')
+			d[h.getHeader()] = h.getValue()
 		return d
 	def _parseHeaders(self, headers):
 		headers = headers.split(u'\n')
@@ -106,6 +107,8 @@ class headers:
 		self.delete(key)
 	def __setitem__(self, key, value):
 		self._addHeader(_header(key, value))
+	def __iter__(self):
+		return itertools.chain([x.getHeader() for x in self._headers])
 	def __str__(self):
 		return u(self).encode('utf8')
 	def __unicode__(self):
