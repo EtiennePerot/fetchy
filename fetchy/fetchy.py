@@ -18,7 +18,6 @@ def run(*args, **kwargs):
 		config = args[0]
 	def resolveConfig(params, defaultParams):
 		for k in defaultParams:
-			print 'Runnin', k, defaultParams
 			if k not in params:
 				params[k] = defaultParams[k]
 			if type(defaultParams[k]) is type({}):

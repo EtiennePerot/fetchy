@@ -1,4 +1,4 @@
-import os, gzip, tempfile, hashlib, urlparse, threading
+import os, gzip, tempfile, base64, urlparse, threading
 from lib.utils import *
 from log import *
 from lib._StringIO import StringIO
@@ -58,20 +58,36 @@ class cacheableItem:
 		self._key = None
 
 class _cachedItem:
+	gzipCompression = None
+	gzipMinSize = None
+	gzipMaxSize = None
 	def __init__(self, cacheableItem):
 		self._key = cacheableItem.getKey()
 		self._data = None
 		self._size = None
+	def _gzip(self):
+		size = self.getSize()
+		if size is not None and gzipMinSize <= size <= gzipMaxSize:
+			threading.Thread(curry(self._backgroundGzip, _cachedItem.gzipCompression)).start()
 	def getKey(self):
 		return self._key
 	def getSize(self):
 		return self._size
+	def toCacheable(self):
+		pass
+	def getData(self, gzipped=True):
+		pass
+	def writeTo(self, target, gzipped=True):
+		pass
+	def _backgroundGzip(self, compression):
+		pass
 
 class memoryCachedItem(_cachedItem):
 	def __init__(self, cacheable):
 		super(memoryCachedItem, self).__init__(cacheable)
 		self._data = cacheable.getData()
 		self._size = len(self._data)
+		self._gzip()
 	def toCacheable(self):
 		return cacheableItem(self._key, self._data, knownSize=self._size)
 	def getData(self):
@@ -79,17 +95,26 @@ class memoryCachedItem(_cachedItem):
 	def writeTo(self, target):
 		target.write(self._data)
 		return self._size
+	def _backgroundGzip(self, compression):
+		pass
 
 class diskCachedItem(_cachedItem):
 	_cacheDirectory = None
+	_maxFilenameSize = 64
 	def __init__(self, cacheable):
 		super(diskCachedItem, self).__init__(cacheable)
 		(scheme, netloc, path, params, query, fragment) = urlparse.urlparse(self._key, 'http')
-		hash = u(hashlib.md5(self._key).hexdigest())
+		encodedPath = u(base64.urlsafe_b64encode(self._key))
+		encodedPathComponents = []
+		while len(encodedPath):
+			i = min(diskCachedItem._maxFilenameSize, len(encodedPath))
+			encodedPathComponents.append(encodedPath[:i])
+			encodedPath = encodedPath[i:]
+		encodedPathComponents[-1] += u'.raw.cache'
 		if netloc:
-			self._filename = os.path.join(diskCachedItem._cacheDirectory, u(netloc), hash + u'.cache')
+			self._filename = os.path.join(diskCachedItem._cacheDirectory, u(netloc), *encodedPathComponents)
 		else:
-			self._filename = os.path.join(diskCachedItem._cacheDirectory, u'unknown-domain', hash + u'.cache')
+			self._filename = os.path.join(diskCachedItem._cacheDirectory, u'unknown-domain', *encodedPathComponents)
 		dirname = os.path.dirname(self._filename)
 		if not os.path.exists(dirname):
 			os.makedirs(dirname)
@@ -167,6 +192,9 @@ def init(gzipCompression, gzipMinSize, gzipMaxSize, diskCacheSize, memoryCacheSi
 	if not os.path.exists(actualDirectory):
 		os.makedirs(actualDirectory)
 	diskCachedItem._cacheDirectory = actualDirectory
+	_cachedItem.gzipCompression = gzipCompression
+	_cachedItem.gzipMinSize = gzipMinSize
+	_cachedItem.gzipMaxSize = gzipMaxSize
 	_fetchyCache = _cache(
 		totalSize=memoryCacheSize,
 		cachedClass=memoryCachedItem,
