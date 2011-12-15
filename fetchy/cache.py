@@ -1,7 +1,7 @@
 import os, gzip, tempfile, hashlib, urlparse, threading
 from lib.utils import *
 from log import *
-from _StringIO import StringIO
+from lib._StringIO import StringIO
 
 _bufferSize = 32768
 
@@ -135,20 +135,18 @@ class _cache:
 			return
 		item = self._cachedClass(item)
 		size = item.getSize()
-		self._lock.acquire()
-		while self._availableSpace < size:
-			self._prune()
-		self._availableSpace -= size
-		self.items[item.getKey()] = item
-		self._orderedItems.append(item)
-		self._lock.release()
+		with self._lock:
+			while self._availableSpace < size:
+				self._prune()
+			self._availableSpace -= size
+			self.items[item.getKey()] = item
+			self._orderedItems.append(item)
 	def lookup(self, key):
 		if key in self._lookup:
-			self._lock.acquire()
-			item = self._lookup[key]
-			self._orderedItems.remove(item)
-			self._orderedItems.append(item)
-			self._lock.release()
+			with self._lock:
+				item = self._lookup[key]
+				self._orderedItems.remove(item)
+				self._orderedItems.append(item)
 			return item
 		if self._levelBelow is not None: # Forward it down
 			return self._levelBelow.lookup(key)
@@ -161,11 +159,11 @@ class _cache:
 			self._levelBelow.add(toPrune.toCacheable())
 
 _fetchyCache = None
-def init(gzipCompression, diskCacheSize, memoryCacheSize, cacheDirectory, bufferSize):
+def init(gzipCompression, gzipMinSize, gzipMaxSize, diskCacheSize, memoryCacheSize, directory, bufferSize):
 	global _bufferSize
 	_bufferSize = bufferSize
 	tempDir = u(tempfile.gettempdir())
-	actualDirectory = u(cacheDirectory).replace(u'%tmp%', tempDir).encode()
+	actualDirectory = u(directory).replace(u'%tmp%', tempDir).encode()
 	if not os.path.exists(actualDirectory):
 		os.makedirs(actualDirectory)
 	diskCachedItem._cacheDirectory = actualDirectory

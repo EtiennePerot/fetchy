@@ -4,11 +4,12 @@ config = {
 	'quiet': False, # True to make the process completely quiet
 	'server': { # Options related to the listening server
 		'port': 9010, # Port to listen on
-		'clientTimeout': 5.0, # Timeout to wait for client uploading data to proxy (seconds)
+		'reverseProxy': None, # If fetchy is meant to be used as a reverse proxy, this should contain the hostname:portNumber of the actual web server behind it.
+		'timeout': 5.0, # Timeout to wait for client uploading data to proxy (seconds)
 		'bufferSize': 1024, # Buffer size for server forwarding data to client (bytes)
 	},
 	'client': { # Options related to the HTTP client
-		'httpTimeout': 5.0, # Timeout for outgoing HTTP requests (seconds)
+		'timeout': 5.0, # Timeout for outgoing HTTP requests (seconds)
 		'bufferSize': 16384, # Buffer size for client HTTP requests (bytes)
 	},
 	'cache': { # Options related to the cache

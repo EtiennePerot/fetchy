@@ -2,7 +2,7 @@ from lib.utils import *
 import urllib, urllib2, threading
 import fetchy
 import zlib, gzip
-from _StringIO import StringIO
+from lib._StringIO import StringIO
 
 class downloadResult:
 	def __init__(self, data, finalUrl, status, headers):
