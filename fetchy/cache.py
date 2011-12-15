@@ -57,6 +57,10 @@ class cacheableItem:
 		self._data = None
 		self._key = None
 
+class cachedData:
+	def __init__(self, gzipped, data):
+		pass
+
 class _cachedItem:
 	gzipCompression = None
 	gzipMinSize = None
@@ -65,6 +69,8 @@ class _cachedItem:
 		self._key = cacheableItem.getKey()
 		self._data = None
 		self._size = None
+		self._gzipped = False
+		self._gzipLock = threading.RLock()
 	def _gzip(self):
 		size = self.getSize()
 		if size is not None and gzipMinSize <= size <= gzipMaxSize:
@@ -91,16 +97,21 @@ class memoryCachedItem(_cachedItem):
 	def toCacheable(self):
 		return cacheableItem(self._key, self._data, knownSize=self._size)
 	def getData(self):
-		return self._data
+		with self._gzipLock:
+			return cachedData(self._gzipped, self._data)
 	def writeTo(self, target):
-		target.write(self._data)
-		return self._size
+		with self._gzipLock:
+			target.write(self._data)
+			return (self._gzipped, self._size)
 	def _backgroundGzip(self, compression):
-		pass
+		gzippedData = gzip.GzipFile(fileobj=StringIO(self._data), compresslevel=compression).read()
+		with self._gzipLock:
+			self._data = gzippedData
+			self._gzipped = True
 
 class diskCachedItem(_cachedItem):
 	_cacheDirectory = None
-	_maxFilenameSize = 64
+	_maxFilenameSize = 92
 	def __init__(self, cacheable):
 		super(diskCachedItem, self).__init__(cacheable)
 		(scheme, netloc, path, params, query, fragment) = urlparse.urlparse(self._key, 'http')
@@ -110,7 +121,6 @@ class diskCachedItem(_cachedItem):
 			i = min(diskCachedItem._maxFilenameSize, len(encodedPath))
 			encodedPathComponents.append(encodedPath[:i])
 			encodedPath = encodedPath[i:]
-		encodedPathComponents[-1] += u'.raw.cache'
 		if netloc:
 			self._filename = os.path.join(diskCachedItem._cacheDirectory, u(netloc), *encodedPathComponents)
 		else:
@@ -118,28 +128,46 @@ class diskCachedItem(_cachedItem):
 		dirname = os.path.dirname(self._filename)
 		if not os.path.exists(dirname):
 			os.makedirs(dirname)
-		handle = open(self._filename, 'wb')
+		handle = open(self._properFilename(forceGzip=False), 'wb')
 		self._size = cacheable.writeTo(handle)
 		handle.close()
+	def _properFilename(self, forceGzip=None):
+		if (self._gzipped and forceGzip is not False) or forceGzip:
+			return self._filename + u'.gz.cache'
+		return self._filename + u'.raw.cache'
 	def toCacheable(self):
 		return cacheableItem(self._key, open(self._filename, 'rb'), knownSize=self._size, closeAfter=True)
 	def getData(self):
 		data = ''
-		handle = open(self._filename, 'rb')
-		i = handle.read(_bufferSize)
-		while len(i):
-			data += i
+		with self._gzipLock:
+			handle = open(self._properFilename(), 'rb')
 			i = handle.read(_bufferSize)
-		handle.close()
-		return data
+			while len(i):
+				data += i
+				i = handle.read(_bufferSize)
+			handle.close()
+			return cachedData(self._gzipped, data)
 	def writeTo(self, target):
-		handle = open(self._filename, 'rb')
-		i = handle.read(_bufferSize)
-		while len(i):
-			target.write(i)
+		with self._gzipLock:
+			handle = open(self._properFilename(), 'rb')
 			i = handle.read(_bufferSize)
-		handle.close()
-		return self._size
+			while len(i):
+				target.write(i)
+				i = handle.read(_bufferSize)
+			handle.close()
+			return (self._gzipped, self._size)
+	def _backgroundGzip(self, compression):
+		gzipHandle = gzip.GzipFile(filename=self._filename, mode='rb', compresslevel=compression)
+		i = gzipHandle.read(_bufferSize)
+		fHandle = open(self._properFilename(forceGzip=True), 'wb')
+		while len(i):
+			fHandle.write(i)
+			i = gzipHandle.read(_bufferSize)
+		fHandle.close()
+		gzipHandle.close()
+		with self._gzipLock:
+			self._gzipped = True
+			os.remove(path)
 
 class _cache:
 	def __init__(self, totalSize, cachedClass, acceptUnknownSize=True, levelBelow=None):
