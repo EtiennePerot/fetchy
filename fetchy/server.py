@@ -62,11 +62,16 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 				self.send_error(500, 'Error happened somewhere in fetchy.')
 			else:
 				size = response.writeToHttpHandler(self)
-				serverInfo('Served', self.path, '- Total', size, 'bytes')
+				serverInfo('Served', self.path, '(Total', size, 'bytes)')
 		except IOError:
 			pass
 		finally:
-			if not keepAlive:
+			if keepAlive:
+				try:
+					self.connection.flush()
+				except:
+					pass
+			else:
 				try:
 					self.connection.close()
 				except:
@@ -82,10 +87,11 @@ class _runThread(threading.Thread):
 	def run(self):
 		self._server.serve_forever()
 
-def init(port, reverseProxy, timeout, bufferSize):
+def init(port, reverseProxy, timeout, chunkSize, bufferSize):
 	serverInfo('Starting server...')
 	_fetchyProxy._timeout = timeout
 	_fetchyProxy._bufferSize = bufferSize
+	httpRequest.init(chunkSize=chunkSize)
 	server = _threadedHTTPServer(('', port), _fetchyProxy)
 	serverInfo('Server listening on socket', server.socket.getsockname())
 	_runThread(server).start()

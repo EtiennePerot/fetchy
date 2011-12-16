@@ -6,6 +6,7 @@ config = {
 		'port': 9010, # Port to listen on
 		'reverseProxy': None, # If fetchy is meant to be used as a reverse proxy, this should contain the hostname:portNumber of the actual web server behind it.
 		'timeout': 5.0, # Timeout to wait for client uploading data to proxy (seconds)
+		'chunkSize': 16384, # Chunk size to use when transmitting data back to client
 		'bufferSize': 1024, # Buffer size for server forwarding data to client (bytes)
 	},
 	'client': { # Options related to the HTTP client

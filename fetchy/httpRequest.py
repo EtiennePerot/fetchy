@@ -1,6 +1,50 @@
 from lib.utils import *
+from lib._StringIO import StringIO
 import itertools
 import fetchy
+
+_responseCodes = {
+	100: u'Continue',
+	101: u'Switching Protocols',
+	200: u'OK',
+	201: u'Created',
+	202: u'Accepted',
+	203: u'Non-Authoritative Information',
+	204: u'No Content',
+	205: u'Reset Content',
+	206: u'Partial Content',
+	300: u'Multiple Choices',
+	301: u'Moved Permanently',
+	302: u'Found',
+	303: u'See Other',
+	304: u'Not Modified',
+	305: u'Use Proxy',
+	307: u'Temporary Redirect',
+	400: u'Bad Request',
+	401: u'Unauthorized',
+	402: u'Payment Required',
+	403: u'Forbidden',
+	404: u'Not Found',
+	405: u'Method Not Allowed',
+	406: u'Not Acceptable',
+	407: u'Proxy Authorization Required',
+	408: u'Request Timeout',
+	409: u'Conflict',
+	410: u'Gone',
+	411: u'Length Required',
+	412: u'Precondition Failed',
+	413: u'Request Entity Too Large',
+	414: u'Request-URI Too Long',
+	415: u'Unsupported Media Type',
+	416: u'Requested Range Not Satisfiable',
+	417: u'Expectation Failed',
+	500: u'Internal Server Error',
+	501: u'Not Implemented',
+	502: u'Bad Gateway',
+	503: u'Service Unavailable',
+	504: u'Gateway Timeout',
+	505: u'HTTP Version Not Supported'
+}
 
 def _normalizeHeaderName(name):
 	return u(name).strip().capitalize()
@@ -74,8 +118,11 @@ class headers(object):
 		if self._responseCode is not None:
 			if self._httpVersion is not None:
 				size += len(self._httpVersion)
-			size += len(str(self._responseCode)) + 4
-			handler.send_response(self._responseCode, '')
+			msg = ''
+			if self._responseCode in _responseCodes:
+				msg = _responseCodes[self._responseCode].encode('utf8')
+			size += len(str(self._responseCode)) + len(msg) + 4
+			handler.send_response(self._responseCode, msg)
 		for h in self._headers:
 			size += h.writeToHttpHandler(handler)
 		return size
@@ -147,7 +194,10 @@ class headers(object):
 	def __unicode__(self):
 		s = u''
 		if self._httpVersion is not None and self._responseCode is not None:
-			s = self._httpVersion + u' ' + u(self._responseCode) + u'\r\n'
+			msg = u''
+			if self._responseCode in _responseCodes:
+				msg = _responseCodes[self._responseCode]
+			s = self._httpVersion + u' ' + u(self._responseCode) + u' ' + msg + u'\r\n'
 		for h in self._headers:
 			s += u(h)
 		return s + u'\r\n'
@@ -181,18 +231,33 @@ class httpRequest(httpMessage):
 
 class httpResponse(httpMessage):
 	_fetchyPassthrough = ['Content-Encoding', 'Cookie', 'Etag', 'date'] # Todo: Pass more headers
+	_chunkSize = 16384
 	def __init__(self, heads, data, responseCode=None, finalUrl=None):
 		super(httpResponse, self).__init__(heads, data)
 		if responseCode is not None:
 			self._headers.setResponseCode(responseCode)
 		self._finalUrl = finalUrl
 	def writeToHttpHandler(self, handler):
+		data = self._data
+		if type(data) is type(u''):
+			data = data.encode('utf8')
+		if type(data) is type(''):
+			self._headers['Content-Length'] = len(data)
+			data = StringIO(data)
 		size = self._headers.writeToHttpHandler(handler)
 		handler.end_headers()
 		size += 2 # \r\n when ending headers
-		if self._data is not None:
-			size += len(self._data)
-			handler.connection.send(self._data)
+		if data is not None:
+			i = data.read(httpResponse._chunkSize)
+			l = len(i)
+			while l:
+				chunk = hex(l)[2:]
+				handler.connection.send(chunk + '\r\n' + i + '\r\n')
+				size += l + len(chunk) + 4
+				i = data.read(httpResponse._chunkSize)
+				l = len(i)
+			handler.connection.send('0\r\n') # Final chunk
+			size += 3
 		return size
 	def getResponseCode(self):
 		return self._headers.getResponseCode()
@@ -204,11 +269,10 @@ class httpResponse(httpMessage):
 		newHeaders.setHttpVersion('HTTP/1.1')
 		newHeaders['X-Proxy-Server'] = 'fetchy/' + fetchy.getVersion()
 		newHeaders['Connection'] = 'Keep-Alive'
-		if self._data is None:
-			newHeaders['Content-Length'] = 0
-		else:
-			newHeaders['Content-Length'] = len(self._data)
+		newHeaders['Transfer-Encoding'] = 'chunked'
 		for h in httpResponse._fetchyPassthrough:
 			newHeaders[h] = self._headers[h]
 		return httpResponse(newHeaders, self._data, responseCode=self._headers.getResponseCode(), finalUrl=self._finalUrl)
 
+def init(chunkSize):
+	httpResponse._chunkSize = chunkSize

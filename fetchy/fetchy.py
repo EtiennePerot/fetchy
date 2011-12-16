@@ -13,7 +13,7 @@ def handleRequest(request):
 	response = client.request(request).toFetchyResponse()
 	if response is not None and cacheKey is not None:
 		cache.cacheResponse(cacheKey, response)
-		return cache.lookupResponse(cacheKey)
+		return cache.lookupResponse(cacheKey).toFetchyResponse()
 	return response
 
 def run(*args, **kwargs):
