@@ -1,57 +1,78 @@
 from lib import BeautifulSoup
 from lib import closure
 import client
-import re
+import string
 
 def parse(url):
     client.asyncFetch(url, onSuccess=processHTML)
     
 def processHTML(html):
     soup = BeautifulSoup.BeautifulSoup(html.getData())
-    javascriptContent = soup.findAll('script', type="text/javascript")
-    parseJavascript(javascriptContent, html.getFinalUrl())
-    cssContent = soup.findAll('style', type="text/css")
+    javascriptContent = soup.findAll("script", type="text/javascript")
+    parseJavascript(javascriptContent, html.getUrl())
+    cssContent = soup.findAll("link", type="text/css")
+    cssContent.append(soup.findAll("style", type="text/css"))
     parseCSS(cssContent)
-    images = soup.findAll('img')
+    images = soup.findAll("img")
+    parseImg(images, html.getUrl())
     
 def parseJavascript(content, url):
-    #concatenate tags
-    result = ''
+    #concatenate and fetch content
+    result = ""
     for script in content:
-        script_string = str(script)
-        opening_tag = script_string[:script_string.index(">")]
-        if(re.search('src\s*=', opening_tag) is None):#if tag doesn't have src attribute
-            start = script_string.index('>') + 1
-            end = script_string.index("</script>")
-            result += script_string[start:end]
-        else:
-            print script#TODO fetch, concatenate
+        try:#if tag has attribute source
+            src = script["src"]
+            result += str(client.fetch(src))
+        except:
+            result += script.string
 
     #compression and minification
     result = closure.compressJavascript(result)
-    
-    print result
-    
-    #TODO concatenation, prefetch
+    result = "".join(["<script type=\"text/javascript\">",result,"</script>"])
+    print result  
+        
 def parseCSS(content):
-    #concatenate tags
-    result = '<style type="text/css">'
-    for style in content:
-        start = str(style).index('>') + 1
-        end = str(style).index('</style>')
-        result += str(style)[start:end]
-    result += "</style>"
-    #TODO concatenation, minification, compression, prefetch
-def parseImg(content):
-    pass
-    #TODO prefetch, jpegtran, pngcrush, transform bmp and tga images
+    result = ""
+    for tag in content:
+        if tag.name is "link":
+            try:#if tag has attribute source
+                src = tag["href"]
+                result += str(client.fetch(src))
+            except:
+                pass
+        else:
+            if(tag.string is not None):
+                result += tag.string
+            
+    #compression and minification
+    result = closure.compressJavascript(result)
+    result = "".join(["<script type=\"text/javascript\">",result,"</script>"])
+
+def parseImg(content, url):
+    for image in content:
+        if(str(image["src"])[0] is "/"):#if image reference is relative
+            if("http://" in url):
+                tmp_int = url[7:].index("/")
+                if(tmp_int >= 0):#if there is a 3rd occurence of "/" in "url"
+                    client.asyncFetch(url[:7+tmp_int]+image["src"])
+                else:
+                    client.asyncFetch(url+"/"+image["src"])
+            else:
+                tmp_int = url.index("/")
+                if(tmp_int >= 0):#if there is an occurence of "/" in "url"
+                    client.asyncFetch(url[:tmp_int]+image["src"])
+                else:
+                    client.asyncFetch(url+"/"+image["src"])
+        else:
+            client.asyncFetch(image["src"])
+    #TODO put in cache, jpegtran, pngcrush, transform bmp and tga images
+    
 def parseHTML(content):
-    pass
-    #TODO minification 
+     content = string.join(content.split()," ")
+     print content
         
 
-parse("http://www.w3schools.com/js/js_howto.asp")
-#parse("http://www.w3schools.com/css/tryit.asp?filename=trycss_default")
-    
+parse("http://stackoverflow.com/questions/1883980/find-the-nth-occurrence-of-substring-in-a-string")
+#parse("http://www.w3schools.com/tags/tag_script.asp")
     
 
