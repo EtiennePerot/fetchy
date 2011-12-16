@@ -32,22 +32,13 @@ def parseJavascript(content, url):
     print result  
         
 def parseCSS(content):
-    result = ""
     for tag in content:
-        if tag.name is "link":
-            try:#if tag has attribute source
-                src = tag["href"]
-                result += str(client.fetch(src))
-            except:
-                pass
-        else:
-            if(tag.string is not None):
-                result += tag.string
-            
-    #compression and minification
-    result = closure.compressJavascript(result)
-    result = "".join(["<script type=\"text/javascript\">",result,"</script>"])
-
+        try:#if tag has attribute source
+            src = tag["href"]
+            client.asyncFetch(src)
+        except:
+            pass
+        
 def parseImg(content, url):
     for image in content:
         if(str(image["src"])[0] is "/"):#if image reference is relative
