@@ -10,7 +10,7 @@ def handleRequest(request):
 		cachedResponse = cache.lookupResponse(cacheKey)
 		if cachedResponse is not None:
 			return cachedResponse
-	response = client.request(request).toFetchyResponse()
+	response = client.request(request).toFetchyResponse(allowKeepAlive=request.isKeepAlive())
 	if response is not None and cacheKey is not None:
 		cache.cacheResponse(cacheKey, response)
 		return cache.lookupResponse(cacheKey).toFetchyResponse()

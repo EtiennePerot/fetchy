@@ -1,6 +1,6 @@
 from lib.utils import *
 from lib._StringIO import StringIO
-import itertools
+import re, itertools
 import fetchy
 
 _responseCodes = {
@@ -82,6 +82,7 @@ class _header(object):
 		return self._header + u': ' + self._value + u'\r\n'
 
 class headers(object):
+	_headerRegex = re.compile(u'^[-\\w]+\s*:')
 	def __init__(self, *headers, **kwargs):
 		if 'responseCode' in kwargs:
 			self._responseCode = kwargs['responseCode']
@@ -91,6 +92,10 @@ class headers(object):
 			self._httpVersion = u(kwargs['httpVersion'].strip())
 		else:
 			self._httpVersion = None
+		if 'command' in kwargs:
+			self._command = u(kwargs['command'].strip())
+		else:
+			self._command = None
 		self._headers = []
 		self.add(*headers)
 	def add(self, *hs):
@@ -130,6 +135,8 @@ class headers(object):
 		return self._responseCode
 	def getHttpVersion(self):
 		return self._httpVersion
+	def getCommand(self):
+		return self._command
 	def get(self, header):
 		header = _normalizeHeaderName(header)
 		for h in self._headers:
@@ -160,21 +167,27 @@ class headers(object):
 		self._responseCode = responseCode
 	def setHttpVersion(self, version):
 		self._httpVersion = u(version)
-	def _parseHeaders(self, headers):
-		headers = headers.split(u'\n')
-		for h in headers:
+	def setCommand(self, command):
+		self._command = u(version).strip().upper()
+	def _parseHeaders(self, hs):
+		hs = hs.split(u'\n')
+		for h in hs:
 			h = h.strip()
 			if not len(h):
 				continue
-			if h.find(':') != -1:
+			if headers._headerRegex.search(h):
 				self._addHeader(_header(h))
-			elif h[:5] == 'HTTP/':
+			else:
 				s = h.split(u' ')
-				self._httpVersion = s[0].strip()
-				try:
-					self._responseCode = int(s[1].strip())
-				except ValueError:
-					pass
+				if s[0][:5] == 'HTTP/':
+					self._httpVersion = s[0].strip()
+					try:
+						self._responseCode = int(s[1].strip())
+					except ValueError:
+						pass
+				elif s[-1][:5] == 'HTTP/':
+					self._httpVersion = s[-1].strip()
+					self._command = s[0].upper().strip()
 	def _addHeader(self, header):
 		self.delete(header.getHeader())
 		self._headers.append(header)
@@ -214,6 +227,8 @@ class httpMessage(object):
 		pass
 	def getHeaders(self):
 		return self._headers
+	def isKeepAlive(self):
+		return self._headers.isKeepAlive()
 	def __str__(self):
 		return self._data
 	def __unicode__(self):
@@ -252,7 +267,7 @@ class httpResponse(httpMessage):
 			l = len(i)
 			while l:
 				chunk = hex(l)[2:]
-				handler.connection.send(chunk + '\r\n' + i + '\r\n')
+				handler.wfile.write(chunk + '\r\n' + i + '\r\n')
 				size += l + len(chunk) + 4
 				i = data.read(httpResponse._chunkSize)
 				l = len(i)
@@ -263,12 +278,15 @@ class httpResponse(httpMessage):
 		return self._headers.getResponseCode()
 	def getUrl(self):
 		return self._finalUrl
-	def toFetchyResponse(self):
+	def toFetchyResponse(self, allowKeepAlive=True):
 		newHeaders = headers()
 		newHeaders.setResponseCode(self._headers.getResponseCode())
 		newHeaders.setHttpVersion('HTTP/1.1')
 		newHeaders['X-Proxy-Server'] = 'fetchy/' + fetchy.getVersion()
-		newHeaders['Connection'] = 'Keep-Alive'
+		if allowKeepAlive:
+			newHeaders['Connection'] = 'Keep-Alive'
+		else:
+			newHeaders['Connection'] = 'Close'
 		newHeaders['Transfer-Encoding'] = 'chunked'
 		for h in httpResponse._fetchyPassthrough:
 			newHeaders[h] = self._headers[h]

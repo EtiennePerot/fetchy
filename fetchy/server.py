@@ -45,10 +45,15 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 			keepGoing = time.time() - initialTime < _fetchyProxy._timeout
 	def _spawnSender(self, destinationSocket):
 		threading.Thread(self._passthrough(destinationSocket)).start()
+	def handle_one_request(self):
+		try:
+			BaseHTTPServer.BaseHTTPRequestHandler.handle_one_request(self)
+		except AttributeError:
+			self.close_connection = 1
 	def do_GET(self):
 		serverInfo('Got request:', self.command, self.path, 'on', threading.current_thread().name)
 		(scheme, netloc, path, params, query, fragment) = urlparse.urlparse(self.path, 'http')
-		headers = httpRequest.headers(self.headers)
+		headers = httpRequest.headers(self.requestline, self.headers)
 		keepAlive = headers.isKeepAlive()
 		if scheme != 'http' or fragment or not netloc:
 			self.send_error(400, "Invalid url: " + self.path)
@@ -57,6 +62,7 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 			del headers['Connection']
 			request = httpRequest.httpRequest(self.command, self.path, headers)
 			response = fetchy.handleRequest(request)
+			keepAlive = keepAlive and response.getHeaders().isKeepAlive()
 			if response is None:
 				serverWarn('Error happened while serving', self.path)
 				self.send_error(500, 'Error happened somewhere in fetchy.')
@@ -66,16 +72,7 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 		except IOError:
 			pass
 		finally:
-			if keepAlive:
-				try:
-					self.connection.flush()
-				except:
-					pass
-			else:
-				try:
-					self.connection.close()
-				except:
-					pass
+			self.finish()
 
 class _threadedHTTPServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
 	pass
