@@ -12,7 +12,7 @@ def _joinStr(args):
 		s.append(u(i))
 	return u' '.join(s).strip()
 
-class _littleLogger:
+class _littleLogger(object):
 	def __init__(self, name):
 		self._log = logging.getLogger(name)
 		_allLogs.append(self)

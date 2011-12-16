@@ -20,7 +20,7 @@ def u(s):
 		except:
 			return s
 
-class curry:
+class curry(object):
 	def __init__(self, func, *args, **kwargs):
 		self._func = func
 		self._pending = args[:]

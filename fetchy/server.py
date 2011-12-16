@@ -1,6 +1,6 @@
 from log import *
 from lib.utils import *
-import httpHeaders
+import httpRequest
 import fetchy
 import urlparse, socket, threading, BaseHTTPServer, SocketServer, select, time
 
@@ -48,20 +48,21 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 	def do_GET(self):
 		serverInfo('Got request:', self.command, self.path, 'on', threading.current_thread().name)
 		(scheme, netloc, path, params, query, fragment) = urlparse.urlparse(self.path, 'http')
-		headers = httpHeaders.headers(self.headers)
+		headers = httpRequest.headers(self.headers)
 		keepAlive = headers.isKeepAlive()
 		if scheme != 'http' or fragment or not netloc:
 			self.send_error(400, "Invalid url: " + self.path)
 			return
 		try:
 			del headers['Connection']
-			response = fetchy.handleRequest(self.path, headers)
+			request = httpRequest.httpRequest(self.command, self.path, headers)
+			response = fetchy.handleRequest(request)
 			if response is None:
 				serverWarn('Error happened while serving', self.path)
 				self.send_error(500, 'Error happened somewhere in fetchy.')
 			else:
-				serverInfo('Served', self.path, 'with', len(response), 'bytes')
-				self.connection.send(response)
+				size = response.writeToHttpHandler(self)
+				serverInfo('Served', self.path, '- Total', size, 'bytes')
 		except IOError:
 			pass
 		finally:

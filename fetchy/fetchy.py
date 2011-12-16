@@ -4,12 +4,17 @@ import cache
 import client
 import server
 
-def handleRequest(url, headers, data=None):
-	response = client.fetch(url, headers=headers, data=data)
-	if response is None:
-		return None
-	else:
-		return response.getFullResponse()
+def handleRequest(request):
+	cacheKey = cache.generateRequestKey(request)
+	if cacheKey is not None:
+		cachedResponse = cache.lookupResponse(cacheKey)
+		if cachedResponse is not None:
+			return cachedResponse
+	response = client.request(request).toFetchyResponse()
+	if response is not None and cacheKey is not None:
+		cache.cacheResponse(cacheKey, response)
+		return cache.lookupResponse(cacheKey)
+	return response
 
 def run(*args, **kwargs):
 	info('Starting with args', args, 'and kwargs', kwargs)

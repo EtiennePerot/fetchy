@@ -1,39 +1,8 @@
 from lib.utils import *
 import urllib, urllib2, threading
-import fetchy, httpHeaders
+import fetchy, httpRequest
 import zlib, gzip
 from lib._StringIO import StringIO
-
-class downloadResult:
-	def __init__(self, data, finalUrl, status, headers):
-		self._data = data
-		self._finalUrl = finalUrl
-		self._status = status
-		self._contentType = headers.getContentType()
-	def getData(self):
-		return self._data
-	def getFinalUrl(self):
-		return self._finalUrl
-	def getStatus(self):
-		return self._status
-	def getHeaders(self):
-		return self._headers
-	def getFullResponse(self):
-		response = 'HTTP/1.1 ' + str(self._status) + '\r\n'
-		response += 'Server: fetchy/' + fetchy.getVersion() + '\r\n'
-		response += 'Connection: Keep-Alive\r\n'
-		if self._contentType is not None:
-			response += 'Content-Type: ' + self._contentType + '\r\n'
-		if self._data is None:
-			response += 'Content-Length: 0\r\n'
-		else:
-			response += 'Content-Length: ' + str(len(self._data)) + '\r\n'
-			response += '\r\n' + self._data
-		return response
-	def __str__(self):
-		return self._data
-	def __unicode__(self):
-		return u(self.data)
 
 class _downloader(threading.Thread):
 	_bufferSize = 16384
@@ -42,10 +11,13 @@ class _downloader(threading.Thread):
 		super(_downloader, self).__init__()
 		self._url = url
 		if headers is None:
-			self._headers = httpHeaders.headers()
+			self._headers = httpRequest.headers()
 		else:
-			self._headers = httpHeaders.headers(headers)
+			self._headers = httpRequest.headers(headers)
 		self._headers['Accept-Encoding'] = 'gzip, deflate, identity'
+		self._headers['Cache-Control'] = 'no-cache'
+		del self._headers['if-modified-since']
+		del self._headers['etag']
 		self._data = data
 		self._onSuccess = onSuccess
 		self._onFailure = onFailure
@@ -55,7 +27,7 @@ class _downloader(threading.Thread):
 			self._onFailure(self, errorCode)
 		if errorCode is None:
 			return None
-		return downloadResult(None, None, errorCode, httpHeaders.headers())
+		return httpRequest.httpResponse(None, None, responseCode=errorCode)
 	def _getPostData(self):
 		if self._data is None:
 			return None
@@ -75,7 +47,8 @@ class _downloader(threading.Thread):
 		except:
 			return self._fail()
 		contents = ''
-		contentEncoding = handle.info().get('Content-Encoding')
+		responseHeaders = httpRequest.headers(handle.info().headers)
+		contentEncoding = responseHeaders['Content-Encoding']
 		if contentEncoding is not None and 'deflate' in contentEncoding:
 			# Zlib mode; can only do it in one shot
 			contents = self._feed(zlib.decompress(handle.read()))
@@ -92,7 +65,7 @@ class _downloader(threading.Thread):
 				if not data:
 					break
 				contents += self._feed(data)
-		result = downloadResult(contents, handle.geturl(), handle.getcode(), httpHeaders.headers(handle.info().headers))
+		result = httpRequest.httpResponse(responseHeaders, contents, responseCode=handle.getcode(), finalUrl=handle.geturl())
 		if self._onSuccess is not None:
 			self._onSuccess(result)
 		return result
@@ -100,6 +73,9 @@ class _downloader(threading.Thread):
 def init(bufferSize, timeout):
 	_downloader._bufferSize = bufferSize
 	_downloader._timeout = timeout
+
+def request(request):
+	return _downloader(request.getUrl(), request.getHeaders(), request.getData()).run()
 
 def fetch(url, headers=None, data=None):
 	return _downloader(url, headers=headers, data=data).run()

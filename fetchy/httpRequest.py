@@ -1,0 +1,214 @@
+from lib.utils import *
+import itertools
+import fetchy
+
+def _normalizeHeaderName(name):
+	return u(name).strip().capitalize()
+
+class _header(object):
+	def __init__(self, *args):
+		if len(args) == 2:
+			self._header = _normalizeHeaderName(args[0])
+			self._value = u(args[1]).strip()
+		elif len(args) == 1:
+			i = args[0].find(':')
+			self._header = _normalizeHeaderName(args[0][:i])
+			self._value = u(args[0][i + 1:]).strip()
+		else:
+			self._header = None
+			self._value = None
+		if self._header == u'proxy-connection':
+			# Invalid header sadly used by all browsers
+			# See http://homepage.ntlworld.com./jonathan.deboynepollard/FGA/web-proxy-connection-header.html
+			self._header = u'connection'
+	def writeToHttpHandler(self, handler):
+		handler.send_header(self.getHeader(), self.getValue())
+		return len(self._header + self._value) + 4
+	def getHeader(self):
+		return self._header.encode('utf8')
+	def getValue(self):
+		return self._value.encode('utf8')
+	def copy(self):
+		return _header(self._header, self._value)
+	def __str__(self):
+		return u(self).encode('utf8')
+	def __unicode__(self):
+		if self._header is None:
+			return u''
+		return self._header + u': ' + self._value + u'\r\n'
+
+class headers(object):
+	def __init__(self, *headers, **kwargs):
+		if 'responseCode' in kwargs:
+			self._responseCode = kwargs['responseCode']
+		else:
+			self._responseCode = None
+		if 'httpVersion' in kwargs:
+			self._httpVersion = u(kwargs['httpVersion'].strip())
+		else:
+			self._httpVersion = None
+		self._headers = []
+		self.add(*headers)
+	def add(self, *hs):
+		for arg in hs:
+			if arg is None:
+				continue
+			if type(arg) in (type(''), type(u'')):
+				self._parseHeaders(u(arg))
+			elif type(arg) in (type([]), type(())):
+				self.add(*arg)
+			elif isinstance(arg, _header):
+				self._addHeader(arg)
+			elif isinstance(arg, headers):
+				for h in arg._headers:
+					self._addHeader(h.copy())
+				if arg._responseCode is not None:
+					self._responseCode = arg._responseCode
+				if arg._httpVersion is not None:
+					self._httpVersion = arg._httpVersion
+			else:
+				for h in arg:
+					self._addHeader(_header(h, arg[h]))
+	def writeToHttpHandler(self, handler):
+		size = 0
+		if self._responseCode is not None:
+			if self._httpVersion is not None:
+				size += len(self._httpVersion)
+			size += len(str(self._responseCode)) + 4
+			handler.send_response(self._responseCode, '')
+		for h in self._headers:
+			size += h.writeToHttpHandler(handler)
+		return size
+	def getResponseCode(self):
+		return self._responseCode
+	def getHttpVersion(self):
+		return self._httpVersion
+	def get(self, header):
+		header = _normalizeHeaderName(header)
+		for h in self._headers:
+			if h.getHeader() == header:
+				return h.getValue()
+		return None
+	def delete(self, header):
+		header = _normalizeHeaderName(header)
+		for h in self._headers:
+			if h.getHeader() == header:
+				self._headers.remove(h)
+				break
+	def getContentType(self):
+		return self.get(u'content-type')
+	def isKeepAlive(self):
+		headerVal = self.get(u'connection')
+		if headerVal is not None:
+			return headerVal.lower() == 'keep-alive'
+		if self._httpVersion is None:
+			return None # Unknown
+		return self._httpVersion != 'HTTP/1.0' # False by default in HTTP/1.0, True by default in 1.1
+	def asDictionary(self):
+		d = {}
+		for h in self._headers:
+			d[h.getHeader()] = h.getValue()
+		return d
+	def setResponseCode(self, responseCode):
+		self._responseCode = responseCode
+	def setHttpVersion(self, version):
+		self._httpVersion = u(version)
+	def _parseHeaders(self, headers):
+		headers = headers.split(u'\n')
+		for h in headers:
+			h = h.strip()
+			if not len(h):
+				continue
+			if h.find(':') != -1:
+				self._addHeader(_header(h))
+			elif h[:5] == 'HTTP/':
+				s = h.split(u' ')
+				self._httpVersion = s[0].strip()
+				try:
+					self._responseCode = int(s[1].strip())
+				except ValueError:
+					pass
+	def _addHeader(self, header):
+		self.delete(header.getHeader())
+		self._headers.append(header)
+	def __getitem__(self, key):
+		return self.get(key)
+	def __delitem__(self, key):
+		self.delete(key)
+	def __setitem__(self, key, value):
+		if value is None:
+			self.delete(key)
+		else:
+			self._addHeader(_header(key, value))
+	def __iter__(self):
+		return itertools.chain([x.getHeader() for x in self._headers])
+	def __str__(self):
+		return u(self).encode('utf8')
+	def __unicode__(self):
+		s = u''
+		if self._httpVersion is not None and self._responseCode is not None:
+			s = self._httpVersion + u' ' + u(self._responseCode) + u'\r\n'
+		for h in self._headers:
+			s += u(h)
+		return s + u'\r\n'
+
+class httpMessage(object):
+	def __init__(self, heads, data):
+		self._data = data
+		if not isinstance(heads, headers):
+			heads = headers(heads)
+		self._headers = heads
+	def getData(self):
+		return self._data
+	def writeDataTo(self, target):
+		pass
+	def getHeaders(self):
+		return self._headers
+	def __str__(self):
+		return self._data
+	def __unicode__(self):
+		return u(self.data)
+
+class httpRequest(httpMessage):
+	def __init__(self, command, url, heads=None, data=None):
+		super(httpRequest, self).__init__(heads, data)
+		self._command = command
+		self._url = url
+	def getCommand(self):
+		return self._command
+	def getUrl(self):
+		return self._url
+
+class httpResponse(httpMessage):
+	_fetchyPassthrough = ['Content-Encoding', 'Cookie', 'Etag', 'date'] # Todo: Pass more headers
+	def __init__(self, heads, data, responseCode=None, finalUrl=None):
+		super(httpResponse, self).__init__(heads, data)
+		if responseCode is not None:
+			self._headers.setResponseCode(responseCode)
+		self._finalUrl = finalUrl
+	def writeToHttpHandler(self, handler):
+		size = self._headers.writeToHttpHandler(handler)
+		handler.end_headers()
+		size += 2 # \r\n when ending headers
+		if self._data is not None:
+			size += len(self._data)
+			handler.connection.send(self._data)
+		return size
+	def getResponseCode(self):
+		return self._headers.getResponseCode()
+	def getUrl(self):
+		return self._finalUrl
+	def toFetchyResponse(self):
+		newHeaders = headers()
+		newHeaders.setResponseCode(self._headers.getResponseCode())
+		newHeaders.setHttpVersion('HTTP/1.1')
+		newHeaders['X-Proxy-Server'] = 'fetchy/' + fetchy.getVersion()
+		newHeaders['Connection'] = 'Keep-Alive'
+		if self._data is None:
+			newHeaders['Content-Length'] = 0
+		else:
+			newHeaders['Content-Length'] = len(self._data)
+		for h in httpResponse._fetchyPassthrough:
+			newHeaders[h] = self._headers[h]
+		return httpResponse(newHeaders, self._data, responseCode=self._headers.getResponseCode(), finalUrl=self._finalUrl)
+
