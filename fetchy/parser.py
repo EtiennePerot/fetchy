@@ -1,6 +1,6 @@
 from lib import BeautifulSoup
 from lib.utils import *
-import threading, urlparse
+import threading, re, urlparse
 import client
 import mini
 import httpRequest
@@ -17,16 +17,18 @@ class _resourceManager(object):
 		key = u(key)
 		with self._lock:
 			if key in self._resources:
-				return self._resources[key]
+				val = self._resources[key]
+				del self._resources[key]
+				return val
 		return None
-
 _fetchyResourceManager = _resourceManager()
 
 class _document(object):
+	_removeDoctype = re.compile(u'^\\s*<!DOCTYPE[^<>]*>\\s*', re.IGNORECASE)
 	def __init__(self, response):
 		self._response = response
 		self._url = self._response.getUrl()
-		self._data = self._response.getData()
+		self._data = _document._removeDoctype.sub(u'', self._response.getData())
 		self._soup = BeautifulSoup.BeautifulSoup(self._data)
 		self._fakeResources = {}
 		self._resources = []
