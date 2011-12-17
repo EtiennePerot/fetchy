@@ -202,6 +202,8 @@ class headers(object):
 			self._addHeader(_header(key, value))
 	def __iter__(self):
 		return itertools.chain([x.getHeader() for x in self._headers])
+	def __contains__(self, h):
+		return self.get(h) is not None
 	def __str__(self):
 		return u(self).encode('utf8')
 	def __unicode__(self):
@@ -245,7 +247,7 @@ class httpRequest(httpMessage):
 		return self._url
 
 class httpResponse(httpMessage):
-	_fetchyPassthrough = ['Content-Encoding', 'Cookie', 'Etag', 'date'] # Todo: Pass more headers
+	_fetchyPassthrough = ['Content-Encoding', 'Cookie', 'Etag', 'Date', 'Location'] # Todo: Pass more headers
 	_chunkSize = 16384
 	def __init__(self, heads, data, responseCode=None, finalUrl=None):
 		super(httpResponse, self).__init__(heads, data)
@@ -271,8 +273,8 @@ class httpResponse(httpMessage):
 				size += l + len(chunk) + 4
 				i = data.read(httpResponse._chunkSize)
 				l = len(i)
-			handler.connection.send('0\r\n') # Final chunk
-			size += 3
+		handler.connection.send('0\r\n') # Final chunk
+		size += 3
 		return size
 	def getResponseCode(self):
 		return self._headers.getResponseCode()

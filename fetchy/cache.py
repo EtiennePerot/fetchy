@@ -59,9 +59,13 @@ class _cacheableItem(object):
 	def __init__(self, key, pristine, compressible):
 		self._key = key
 		self._pristine = pristine
+		if self._pristine is None:
+			self._pristine = ''
 		if not isinstance(self._pristine, _streamableData):
 			self._pristine = _streamableData(self._pristine)
 		self._compressible = compressible
+		if self._compressible is None:
+			self._compressible = ''
 		if not isinstance(self._compressible, _streamableData):
 			self._compressible = _streamableData(self._compressible)
 	def getKey(self):
@@ -374,5 +378,5 @@ def lookupResponse(key):
 def cacheResponse(key, response):
 	if _fetchyCache is None:
 		return None
-	cacheInfo('[ADD] Caching response at', key)
+	cacheInfo('[ADD] Caching response at', key, response.getHeaders())
 	_fetchyCache.add(_cacheableItem(key, u(response.getHeaders()), response.getData()))

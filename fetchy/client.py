@@ -1,12 +1,43 @@
 from lib.utils import *
-import urllib, urllib2, threading
+from log import *
+import urllib, urllib2, urlparse, threading
 import fetchy, httpRequest
 import zlib, gzip
 from lib._StringIO import StringIO
 
+class _httpRedirectException(Exception):
+	def __init__(self, req, fp, code, msg, hs):
+		self._req = req
+		self._fp = fp
+		self._code = code
+		self._msg = msg
+		self._headers = httpRequest.headers(hs)
+		if 'Location' in self._headers:
+			self._location = self._headers['Location']
+		elif 'uri' in self._headers:
+			self._location = self._headers['uri']
+		else:
+			self._location = None
+	def getFinalUrl(self):
+		if self._location is None:
+			return None
+		urlparts = urlparse.urlparse(self._location)
+		if not urlparts.path:
+			urlparts = list(urlparts)
+			urlparts[2] = '/'
+		newurl = urlparse.urlunparse(urlparts)
+		newurl = urlparse.urljoin(self._req.get_full_url(), newurl)
+		return newurl
+
+class _urlRedirectHandler(urllib2.HTTPRedirectHandler):
+	def http_error_301(self, req, fp, code, msg, headers):
+		raise _httpRedirectException(req, fp, code, msg, headers)
+	http_error_302 = http_error_303 = http_error_307 = http_error_301
+
 class _downloader(threading.Thread):
 	_bufferSize = 16384
 	_timeout = 10
+	_opener = None
 	def __init__(self, url, headers=None, data=None, onSuccess=None, onFailure=None, toFeed=None):
 		super(_downloader, self).__init__()
 		self._url = url
@@ -18,6 +49,7 @@ class _downloader(threading.Thread):
 		self._headers['Cache-Control'] = 'no-cache'
 		del self._headers['if-modified-since']
 		del self._headers['etag']
+		del self._headers['Host']
 		self._data = data
 		self._onSuccess = onSuccess
 		self._onFailure = onFailure
@@ -40,12 +72,28 @@ class _downloader(threading.Thread):
 			self._toFeed(data)
 		return data
 	def run(self):
-		try:
-			handle = urllib2.urlopen(urllib2.Request(self._url, self._getPostData(), self._headers.asDictionary()), timeout=_downloader._timeout)
-		except urllib2.HTTPError, e:
-			return self._fail(e.code)
-		except:
-			return self._fail()
+		headersDict = self._headers.asDictionary()
+		postData = self._getPostData()
+		req = urllib2.Request(self._url, postData, headersDict)
+		attempted = []
+		successful = False
+		while not successful:
+			try:
+				handle = _downloader._opener.open(req, timeout=_downloader._timeout)
+			except _httpRedirectException, e:
+				nextUrl = e.getFinalUrl()
+				if nextUrl in attempted:
+					clientWarn('Infinite redirect detected! Got redirected to', nextUrl, 'after attempts', attempted)
+					return self._fail()
+				clientInfo('Got redirect to', nextUrl, '- Current attempts:', attempted)
+				attempted.append(nextUrl)
+				req = urllib2.Request(nextUrl, postData, headersDict)
+				continue
+			except urllib2.HTTPError, e:
+				return self._fail(e.code)
+			except:
+				return self._fail()
+			successful = True
 		contents = ''
 		responseHeaders = httpRequest.headers(handle.info().headers)
 		contentEncoding = responseHeaders['Content-Encoding']
@@ -53,7 +101,7 @@ class _downloader(threading.Thread):
 			# Zlib mode; can only do it in one shot
 			contents = self._feed(zlib.decompress(handle.read()))
 		elif contentEncoding is not None and 'gzip' in contentEncoding:
-			# Gzip mode; can only do it in one shot
+			# Gzip mode; can only do it in one shot due to lack of seek()/tell()
 			contents = self._feed(gzip.GzipFile(fileobj=StringIO(handle.read())).read())
 		else:
 			# Identity mode
@@ -71,6 +119,7 @@ class _downloader(threading.Thread):
 		return result
 
 def init(bufferSize, timeout):
+	_downloader._opener = urllib2.build_opener(_urlRedirectHandler)
 	_downloader._bufferSize = bufferSize
 	_downloader._timeout = timeout
 
