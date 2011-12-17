@@ -57,7 +57,7 @@ class _streamableData(object):
 
 class _cacheableItem(object):
 	def __init__(self, key, pristine, compressible):
-		self._key = key
+		self._key = u(key)
 		self._pristine = pristine
 		if self._pristine is None:
 			self._pristine = ''
@@ -272,7 +272,7 @@ class diskCachedItem(_cachedItem):
 			self._compressedSize = os.path.getsize(gzipFile)
 			os.remove(rawFile)
 
-class _cache(object):
+class _cacheLevel(object):
 	def __init__(self, name, totalSize, cachedClass, acceptUnknownSize=True, levelBelow=None):
 		self._name = name
 		self._totalSize = totalSize
@@ -316,6 +316,34 @@ class _cache(object):
 		if self._levelBelow is not None: # Forward it down
 			self._levelBelow.add(toPrune.toCacheable())
 
+class _cache(object):
+	def __init__(self, *args, **kwargs):
+		self._cacheLevel = _cacheLevel(*args, **kwargs)
+		self._lock = threading.RLock()
+		self._conditions = {}
+	def add(self, item):
+		key = item.getKey()
+		self._cacheLevel.add(item)
+		self.unlock(key)
+	def lookup(self, key):
+		key = u(key)
+		with self._lock:
+			while key in self._conditions:
+				self._conditions[key].wait()
+		return self._cacheLevel.lookup(key)
+	def lock(self, key):
+		key = u(key)
+		with self._lock:
+			if key not in self._conditions:
+				self._conditions[key] = threading.Condition(self._lock)
+	def unlock(self, key):
+		key = u(key)
+		with self._lock:
+			if key in self._conditions:
+				condition = self._conditions[key]
+				del self._conditions[key]
+				condition.notifyAll()
+
 def generateKey(*objects):
 	s = []
 	for i in objects:
@@ -357,7 +385,9 @@ def init(gzipCompression, gzipMinSize, gzipMaxSize, diskCacheSize, memoryCacheSi
 	})
 
 def generateRequestKey(request):
-	return generateKey(request.getCommand(), request.getUrl())
+	if request.getCommand() != 'GET':
+		return None
+	return generateKey('GET', request.getUrl())
 
 def lookupResponse(key):
 	if _fetchyCache is None:
@@ -374,6 +404,16 @@ def lookupResponse(key):
 			body = body.getData()
 		data = httpRequest.httpResponse(headers, body)
 	return data
+
+def reserve(key):
+	if _fetchyCache is None:
+		return None
+	_fetchyCache.lock(key)
+
+def cancel(key):
+	if _fetchyCache is None:
+		return None
+	_fetchyCache.unlock(key)
 
 def cacheResponse(key, response):
 	if _fetchyCache is None:

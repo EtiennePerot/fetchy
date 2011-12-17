@@ -65,6 +65,10 @@ class _downloader(threading.Thread):
 	def _getPostData(self):
 		if self._data is None:
 			return None
+		if type(self._data) is type(u''):
+			return self._data.encode('utf8')
+		if type(self._data) is type(''):
+			return self._data
 		s = []
 		for key in self._data:
 			s.append(urllib2.urlencode(u(key).encode('utf8')) + '=' + urllib2.urlencode(u(self._data[key]).encode('utf8')))

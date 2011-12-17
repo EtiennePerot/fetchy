@@ -153,7 +153,10 @@ class headers(object):
 				self._headers.remove(h)
 				break
 	def getContentType(self):
-		return self.get(u'content-type').lower()
+		contentType = self.get(u'content-type')
+		if contentType is None:
+			return None
+		return contentType.lower()
 	def isKeepAlive(self):
 		headerVal = self.get(u'connection')
 		if headerVal is not None:
@@ -237,7 +240,8 @@ class httpMessage(object):
 	def getContentType(self):
 		return self._headers.getContentType()
 	def isParsable(self):
-		return u'text/html' in self.getContentType()
+		contentType = self.getContentType()
+		return contentType is not None and u'text/html' in contentType
 	def __str__(self):
 		return self._data
 	def __unicode__(self):

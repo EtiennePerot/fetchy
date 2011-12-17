@@ -49,27 +49,6 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 			self.send_error(404, 'Socket error: ' + u(errMsg))
 			return None
 		return sock
-	def _passthrough(self, destinationSocket):
-		connection = self.connection
-		inputs = [connection]
-		outputs = []
-		keepGoing = True
-		initialTime = time.time()
-		while keepGoing:
-			try:
-				(inStreams, _, errStreams) = select.select(inputs, outputs, inputs, _fetchyProxy._timeout)
-				if errStreams:
-					break
-				if len(inStreams):
-					data = connection.recv(_fetchyProxy._bufferSize)
-					if data:
-						destinationSocket.send(data)
-						initialTime = time.time()
-			except:
-				break
-			keepGoing = time.time() - initialTime < _fetchyProxy._timeout
-	def _spawnSender(self, destinationSocket):
-		threading.Thread(self._passthrough(destinationSocket)).start()
 	def handle_one_request(self):
 		try:
 			BaseHTTPServer.BaseHTTPRequestHandler.handle_one_request(self)
@@ -80,23 +59,52 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 		(scheme, netloc, path, params, query, fragment) = urlparse.urlparse(self.path, 'http')
 		if scheme != 'http' or fragment or not netloc:
 			self.send_error(400, "Invalid url: " + self.path)
+	def _writeResponse(self, response):
+		if response is None:
+			serverWarn('Error happened while serving', self.path)
+			self.send_error(500, 'Error happened somewhere in fetchy.')
+		else:
+			writer = _bufferedWriter(self.wfile, buffer=_fetchyProxy._bufferSize)
+			size = response.writeTo(writer.write)
+			writer.flush()
+			serverInfo('Served', self.path, '(Total', size, 'bytes)')
 	def do_GET(self):
 		self._initRequest()
 		try:
 			request = httpRequest.httpRequest(self.command, self.path, self.headers)
 			response = fetchy.handleRequest(request)
-			if response is None:
-				serverWarn('Error happened while serving', self.path)
-				self.send_error(500, 'Error happened somewhere in fetchy.')
-			else:
-				writer = _bufferedWriter(self.wfile, buffer=_fetchyProxy._bufferSize)
-				size = response.writeTo(writer.write)
-				writer.flush()
-				serverInfo('Served', self.path, '(Total', size, 'bytes)')
+			self._writeResponse(response)
 		except IOError:
 			pass
 		finally:
-			self.finish()
+			try:
+				self.finish()
+			except:
+				pass
+	def do_POST(self):
+		self._initRequest()
+		try:
+			headers = httpRequest.headers(self.headers)
+			contentLength = headers['Content-Length']
+			if contentLength is None:
+				self.send_error(406, 'POST request must include Content-Length header.')
+				return
+			try:
+				contentLength = int(contentLength)
+			except ValueError:
+				self.send_error(406, 'Content-Length header is not an integer.')
+				return
+			data = self.rfile.read(contentLength)
+			request = httpRequest.httpRequest(self.command, self.path, headers, data)
+			response = fetchy.handleRequest(request)
+			self._writeResponse(response)
+		except IOError:
+			pass
+		finally:
+			try:
+				self.finish()
+			except:
+				pass
 
 class _threadedHTTPServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
 	pass

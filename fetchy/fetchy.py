@@ -1,9 +1,35 @@
 from lib.utils import *
 from log import *
+import threading
 import cache
 import parser
 import client
 import server
+
+def _getResponse(request):
+	if request.isFetchyInternal(): # Internal objects created by the parser
+		response = parser.internalRequest(request)
+	else: # Regular objects
+		response = client.request(request)
+		if response.isParsable():
+			response = parser.processResponse(response)
+	return response.toFetchyResponse(allowKeepAlive=request.isKeepAlive())
+
+def _backgroundCache(request):
+	key = cache.generateRequestKey(request)
+	response = _getResponse(request)
+	if response is None:
+		cache.cancel(key)
+	else:
+		cache.cacheResponse(key, response)
+
+def backgroundCache(request):
+	cacheKey = cache.generateRequestKey(request)
+	if cacheKey is None:
+		return False
+	cache.reserve(cacheKey)
+	threading.Thread(target=curry(_backgroundCache, request)).start()
+	return True
 
 def handleRequest(request):
 	cacheKey = cache.generateRequestKey(request)
@@ -11,13 +37,7 @@ def handleRequest(request):
 		cachedResponse = cache.lookupResponse(cacheKey)
 		if cachedResponse is not None:
 			return cachedResponse
-	if request.isFetchyInternal(): # Internal objects created by the parser
-		response = parser.internalRequest(request)
-	else: # Regular objects
-		response = client.request(request)
-		if response.isParsable():
-			response = parser.processResponse(response)
-	response = response.toFetchyResponse(allowKeepAlive=request.isKeepAlive())
+	response = _getResponse(request)
 	if response is not None and cacheKey is not None:
 		cache.cacheResponse(cacheKey, response)
 		return cache.lookupResponse(cacheKey).toFetchyResponse()

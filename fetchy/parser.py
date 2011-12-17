@@ -1,6 +1,7 @@
 from lib import BeautifulSoup
 from lib.utils import *
 import threading, re, urlparse
+import fetchy
 import client
 import mini
 import httpRequest
@@ -24,11 +25,11 @@ class _resourceManager(object):
 _fetchyResourceManager = _resourceManager()
 
 class _document(object):
-	_removeDoctype = re.compile(u'^\\s*<!DOCTYPE[^<>]*>\\s*', re.IGNORECASE)
+	_removeHtmlJunk = re.compile(u'^\\s*<!DOCTYPE[^<>]*>\\s*|<!--(?:(?!-->).)*-->', re.IGNORECASE | re.DOTALL)
 	def __init__(self, response):
 		self._response = response
 		self._url = self._response.getUrl()
-		self._data = _document._removeDoctype.sub(u'', self._response.getData())
+		self._data = _document._removeHtmlJunk.sub(u'', self._response.getData())
 		self._soup = BeautifulSoup.BeautifulSoup(self._data)
 		self._fakeResources = {}
 		self._resources = []
@@ -45,7 +46,7 @@ class _document(object):
 	def addResource(self, resource):
 		if resource not in self._resources:
 			self._resources.append(resource)
-			client.asyncFetch(resource) # Todo: Pass to cache
+			fetchy.backgroundCache(httpRequest.httpRequest('GET', resource))
 	def streamResourceTo(self, url, target):
 		client.fetchToFunction(url, target)
 	def registerFakeResource(self, key, callback):

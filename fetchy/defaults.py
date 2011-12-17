@@ -21,5 +21,25 @@ config = {
 		'memoryCacheSize': 32 * 1024 * 1024, # Memory cache size (bytes)
 		'directory': '%tmp%/fetchy', # Location of the disk cache ("%tmp%" will be replaced by the system's temporary directory)
 		'bufferSize': 32768, # Buffer size for cache I/O operations
+	},
+	'mini': { # Minification parameters
+		'js': { # Javascript minification parameters
+			'closureLevel': 'SIMPLE_OPTIMIZATIONS' # Closure compiler optimization level (None to disable, or one of WHITESPACE_ONLY, SIMPLE_OPTIMIZATIONS, ADVANCED_OPTIMIZATIONS)
+		},
+		'css': { # CSS minification parameters
+		},
+		'images': { # Image minification parameters
+			'png': { # PNG minification parameters
+				'pngoutStrategy': 2 # PNGOUT strategy (None to disable, or from 0 (slowest, very compressed) to 3 (fastest, not very compressed))
+			},
+			'jpeg': { # JPEG minification parameters
+			},
+			'bmp': { # BMP minification parameters
+				'convertToPNG': True # True to convert bitmaps to PNG, False to let them be
+			},
+			'tga': { # TGA minification parameters
+				'convertToPNG': True # True to convert Targas to PNG, False to let them be
+			}
+		}
 	}
 }
