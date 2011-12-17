@@ -65,8 +65,8 @@ class _header(object):
 			# Invalid header sadly used by all browsers
 			# See http://homepage.ntlworld.com./jonathan.deboynepollard/FGA/web-proxy-connection-header.html
 			self._header = u'connection'
-	def writeToHttpHandler(self, handler):
-		handler.send_header(self.getHeader(), self.getValue())
+	def writeTo(self, target):
+		target(self.getHeader() + ': ' + self.getValue() + '\r\n')
 		return len(self._header + self._value) + 4
 	def getHeader(self):
 		return self._header.encode('utf8')
@@ -118,19 +118,22 @@ class headers(object):
 			else:
 				for h in arg:
 					self._addHeader(_header(h, arg[h]))
-	def writeToHttpHandler(self, handler):
+	def writeTo(self, target):
 		size = 0
 		if self._responseCode is not None:
-			if self._httpVersion is not None:
-				size += len(self._httpVersion)
 			msg = ''
+			if self._httpVersion is not None:
+				msg += self._httpVersion.encode('utf8') + ' '
+			msg += str(self._responseCode) + ' '
 			if self._responseCode in _responseCodes:
-				msg = _responseCodes[self._responseCode].encode('utf8')
-			size += len(str(self._responseCode)) + len(msg) + 4
-			handler.send_response(self._responseCode, msg)
+				msg += _responseCodes[self._responseCode].encode('utf8')
+			msg += '\r\n'
+			size = len(msg)
+			target(msg)
 		for h in self._headers:
-			size += h.writeToHttpHandler(handler)
-		return size
+			size += h.writeTo(target)
+		target('\r\n') # End headers
+		return size + 2
 	def getResponseCode(self):
 		return self._responseCode
 	def getHttpVersion(self):
@@ -157,7 +160,7 @@ class headers(object):
 			return headerVal.lower() == 'keep-alive'
 		if self._httpVersion is None:
 			return None # Unknown
-		return self._httpVersion != 'HTTP/1.0' # False by default in HTTP/1.0, True by default in 1.1
+		return self._httpVersion != u'HTTP/1.0' # False by default in HTTP/1.0, True by default in 1.1
 	def asDictionary(self):
 		d = {}
 		for h in self._headers:
@@ -261,26 +264,24 @@ class httpResponse(httpMessage):
 		if responseCode is not None:
 			self._headers.setResponseCode(responseCode)
 		self._finalUrl = finalUrl
-	def writeToHttpHandler(self, handler):
+	def writeTo(self, target):
 		data = self._data
 		if type(data) is type(u''):
 			data = data.encode('utf8')
 		if type(data) is type(''):
 			self._headers['Content-Length'] = len(data)
 			data = StringIO(data)
-		size = self._headers.writeToHttpHandler(handler)
-		handler.end_headers()
-		size += 2 # \r\n when ending headers
+		size = self._headers.writeTo(target)
 		if data is not None:
 			i = data.read(httpResponse._chunkSize)
 			l = len(i)
 			while l:
 				chunk = hex(l)[2:]
-				handler.wfile.write(chunk + '\r\n' + i + '\r\n')
+				target(chunk + '\r\n' + i + '\r\n')
 				size += l + len(chunk) + 4
 				i = data.read(httpResponse._chunkSize)
 				l = len(i)
-		handler.connection.send('0\r\n') # Final chunk
+		target('0\r\n') # Final chunk
 		size += 3
 		return size
 	def getResponseCode(self):

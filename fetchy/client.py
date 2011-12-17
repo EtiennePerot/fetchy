@@ -47,6 +47,7 @@ class _downloader(threading.Thread):
 			self._headers = httpRequest.headers(headers)
 		self._headers['Accept-Encoding'] = 'gzip, deflate, identity'
 		self._headers['Cache-Control'] = 'no-cache'
+		del self._headers['Connection']
 		del self._headers['if-modified-since']
 		del self._headers['etag']
 		del self._headers['Host']

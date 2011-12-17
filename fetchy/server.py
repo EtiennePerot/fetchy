@@ -4,6 +4,31 @@ import httpRequest
 import fetchy
 import urlparse, socket, threading, BaseHTTPServer, SocketServer, select, time
 
+class _bufferedWriter(object):
+	def __init__(self, stream, writeFunction=None, buffer=4096):
+		self._stream = stream
+		if writeFunction is not None:
+			self._writeFunction = writeFunction
+		elif hasattr(self._stream, 'write'):
+			self._writeFunction = self._stream.write
+		elif hasattr(self._stream, 'send'):
+			self._writeFunction = self._stream.send
+		self._toWrite = ''
+		self._bufferSize = buffer
+		self._callFlush = hasattr(self._stream, 'flush')
+	def write(self, data):
+		self._toWrite += data
+		while len(self._toWrite) >= self._bufferSize:
+			self.flush()
+	def flush(self):
+		index = min(self._bufferSize, len(self._toWrite))
+		self._writeFunction(self._toWrite[:index])
+		self._toWrite = self._toWrite[index:]
+		if self._callFlush:
+			self._stream.flush()
+	def close(self):
+		self._stream.close()
+
 class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 	protocol_version = 'HTTP/1.1'
 	_timeout = 10
@@ -36,7 +61,7 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 				if errStreams:
 					break
 				if len(inStreams):
-					data = connection.recv(16384)
+					data = connection.recv(_fetchyProxy._bufferSize)
 					if data:
 						destinationSocket.send(data)
 						initialTime = time.time()
@@ -50,24 +75,23 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 			BaseHTTPServer.BaseHTTPRequestHandler.handle_one_request(self)
 		except AttributeError:
 			self.close_connection = 1
-	def do_GET(self):
-		serverInfo('Got request:', self.command, self.path, 'on', threading.current_thread().name)
+	def _initRequest(self):
+		serverInfo(self.command, self.path, 'on', threading.current_thread().name)
 		(scheme, netloc, path, params, query, fragment) = urlparse.urlparse(self.path, 'http')
-		headers = httpRequest.headers(self.requestline, self.headers)
-		keepAlive = headers.isKeepAlive()
 		if scheme != 'http' or fragment or not netloc:
 			self.send_error(400, "Invalid url: " + self.path)
-			return
+	def do_GET(self):
+		self._initRequest()
 		try:
-			del headers['Connection']
-			request = httpRequest.httpRequest(self.command, self.path, headers)
+			request = httpRequest.httpRequest(self.command, self.path, self.headers)
 			response = fetchy.handleRequest(request)
-			keepAlive = keepAlive and response.getHeaders().isKeepAlive()
 			if response is None:
 				serverWarn('Error happened while serving', self.path)
 				self.send_error(500, 'Error happened somewhere in fetchy.')
 			else:
-				size = response.writeToHttpHandler(self)
+				writer = _bufferedWriter(self.wfile, buffer=_fetchyProxy._bufferSize)
+				size = response.writeTo(writer.write)
+				writer.flush()
 				serverInfo('Served', self.path, '(Total', size, 'bytes)')
 		except IOError:
 			pass

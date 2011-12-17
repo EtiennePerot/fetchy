@@ -83,7 +83,10 @@ def process(document):
 	combinedScript.start()
 	scriptKey = scriptKey.hexdigest() + u'.js'
 	document.registerFakeResource(scriptKey, curry(_getCombinedScript, combinedScript))
-	scriptTag = BeautifulSoup.Tag(soup, 'script', {'src': document.getFakeResourceUrl(scriptKey)})
+	scriptTag = BeautifulSoup.Tag(soup, u'script', {u'src': document.getFakeResourceUrl(scriptKey)})
+	scriptTag.append(BeautifulSoup.NavigableString(u''))
+	wrapperDiv = BeautifulSoup.Tag(soup, u'div', {u'style': u'display:none'})
+	wrapperDiv.append(scriptTag)
 	for script in scripts:
 		script.extract()
-	body.append(scriptTag)
+	body.append(wrapperDiv)
