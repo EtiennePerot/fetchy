@@ -31,4 +31,3 @@ def process(document):
     #compression and minification
 	result = compressJavascript(result)
 	result = '<script type="text/javascript">' + result + '</script>'
-	print result

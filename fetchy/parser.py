@@ -28,5 +28,5 @@ class document(object):
 def parse(url):
 	return mini.process(document(client.fetch(url)))
 
-#print parse("http://stackoverflow.com/questions/1883980/find-the-nth-occurrence-of-substring-in-a-string")
-print parse("http://www.w3schools.com/tags/tag_script.asp")
+#parse("http://stackoverflow.com/questions/1883980/find-the-nth-occurrence-of-substring-in-a-string")
+parse("http://www.crummy.com/software/BeautifulSoup/documentation.html")
