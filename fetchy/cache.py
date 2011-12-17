@@ -378,5 +378,5 @@ def lookupResponse(key):
 def cacheResponse(key, response):
 	if _fetchyCache is None:
 		return None
-	cacheInfo('[ADD] Caching response at', key, response.getHeaders())
+	cacheInfo('[ADD] Caching response at', key)
 	_fetchyCache.add(_cacheableItem(key, u(response.getHeaders()), response.getData()))
