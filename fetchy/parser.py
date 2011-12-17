@@ -7,6 +7,7 @@ def parse(url):
     client.asyncFetch(url, onSuccess=processHTML)
     
 def processHTML(html):
+    print html
     soup = BeautifulSoup.BeautifulSoup(html.getData())
     javascriptContent = soup.findAll("script", type="text/javascript")
     parseJavascript(javascriptContent, html.getUrl())
@@ -24,7 +25,11 @@ def parseJavascript(content, url):
             src = script["src"]
             result += str(client.fetch(src))
         except:
-            result += script.string
+            tmp_int = script.string.find("<!--")
+            if(tmp_int < 0):#if there are no invalid elements for compression
+                result += script.string
+            else:
+                result += script.string[tmp_int+4:script.string.find("-->")]
 
     #compression and minification
     result = closure.compressJavascript(result)
@@ -43,13 +48,13 @@ def parseImg(content, url):
     for image in content:
         if(str(image["src"])[0] is "/"):#if image reference is relative
             if("http://" in url):
-                tmp_int = url[7:].index("/")
+                tmp_int = url[7:].find("/")
                 if(tmp_int >= 0):#if there is a 3rd occurence of "/" in "url"
                     client.asyncFetch(url[:7+tmp_int]+image["src"])
                 else:
                     client.asyncFetch(url+"/"+image["src"])
             else:
-                tmp_int = url.index("/")
+                tmp_int = url.find("/")
                 if(tmp_int >= 0):#if there is an occurence of "/" in "url"
                     client.asyncFetch(url[:tmp_int]+image["src"])
                 else:
@@ -60,10 +65,8 @@ def parseImg(content, url):
     
 def parseHTML(content):
      content = string.join(content.split()," ")
-     print content
-        
 
-parse("http://stackoverflow.com/questions/1883980/find-the-nth-occurrence-of-substring-in-a-string")
-#parse("http://www.w3schools.com/tags/tag_script.asp")
+#parse("http://stackoverflow.com/questions/1883980/find-the-nth-occurrence-of-substring-in-a-string")
+parse("http://www.w3schools.com/tags/tag_script.asp")
     
 
