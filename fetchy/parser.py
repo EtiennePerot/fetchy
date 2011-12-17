@@ -55,15 +55,12 @@ class _document(object):
 	def __exit__(self):
 		self._soupLock.release()
 
-def _processDocument(document, prettyify=False): # Temp: Do not prettify when not debugging. Prettifying is useful when debugging only.
+def _processDocument(document, prettyify=False):
 	mini.process(document)
 	finalSoup = document.getSoup()
 	if prettyify:
 		return finalSoup.prettify()
 	return unicode(finalSoup)
-
-def _parseUrl(url):
-	return _processDocument(_document(client.fetch(url)))
 
 def processResponse(response):
 	html = _processDocument(_document(response))
@@ -78,6 +75,5 @@ def internalRequest(request):
 		return None
 	return data(key, reqUrl)
 
-def tempTest():
-	#print _parseUrl("http://stackoverflow.com/questions/1883980/find-the-nth-occurrence-of-substring-in-a-string")
-	print _parseUrl("http://www.crummy.com/software/BeautifulSoup/documentation.html")
+def tempTest(url): # Todo: Remove me
+	return _processDocument(_document(client.fetch(url)))
