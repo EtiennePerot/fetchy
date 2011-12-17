@@ -24,12 +24,15 @@ def _backgroundCache(request):
 	else:
 		cache.cacheResponse(key, response)
 
-def backgroundCache(request):
+def reserveRequest(request):
 	cacheKey = cache.generateRequestKey(request)
-	if cacheKey is None:
-		return False
-	cache.reserve(cacheKey)
-	threading.Thread(target=curry(_backgroundCache, request)).start()
+	if cacheKey is not None:
+		return cache.reserve(cacheKey)
+	return False
+
+def backgroundCache(request):
+	if reserveRequest(request):
+		threading.Thread(target=curry(_backgroundCache, request)).start()
 	return True
 
 def handleRequest(request):

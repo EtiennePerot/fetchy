@@ -2,6 +2,7 @@ import os, re, hashlib, subprocess, threading
 from ... import httpRequest
 from ...lib import BeautifulSoup
 from ...lib.utils import *
+from ...lib._StringIO import StringIO
 
 class _script(object):
 	_removeHtmlComments = re.compile(u'^\\s*/*\\s*<!--[^\\r\\n]*|/*\\s*-->\\s*$')
@@ -15,6 +16,12 @@ class _script(object):
 			key.update('text' + self._text.encode('utf8'))
 		else:
 			key.update('url' + self._url.encode('utf8'))
+	def getData(self):
+		if self._isText:
+			return self._text
+		s = StringIO()
+		self._document.streamResourceTo(self._url, s)
+		return s.getvalue()
 	def writeTo(self, target):
 		if self._isText:
 			target(self._text)
@@ -44,18 +51,24 @@ class _combinedScript(threading.Thread):
 	def add(self, script):
 		self._scripts.append(script)
 	def run(self):
-		process = subprocess.Popen(
-			_combinedScript._compilerCommand1 + [combinedScript._compilerLevel] + combinedScript._compilerCommand2,
-			- 1,
-			stdin=subprocess.PIPE,
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE
-		)
-		for script in self._scripts:
-			script.writeTo(process.stdin.write)
-			process.stdin.write(';')
-		(contents, _) = process.communicate()
-		contents = contents.decode('utf8').strip()
+		if self._useCompiler:
+			process = subprocess.Popen(
+				_combinedScript._compilerCommand1 + [_combinedScript._compilerLevel] + _combinedScript._compilerCommand2,
+				- 1,
+				stdin=subprocess.PIPE,
+				stdout=subprocess.PIPE,
+				stderr=subprocess.PIPE
+			)
+			for script in self._scripts:
+				script.writeTo(process.stdin.write)
+				process.stdin.write(';\n')
+			(contents, _) = process.communicate()
+			contents = contents.decode('utf8').strip()
+		else:
+			contents = u''
+			for script in self._scripts:
+				contents += u(script.getData()).strip() + u';\n'
+			contents = contents.strip()
 		with self._lock:
 			self._contents = contents
 			self._doneProcessing = True

@@ -336,6 +336,8 @@ class _cache(object):
 		with self._lock:
 			if key not in self._conditions:
 				self._conditions[key] = threading.Condition(self._lock)
+				return True
+		return False
 	def unlock(self, key):
 		key = u(key)
 		with self._lock:
@@ -343,6 +345,8 @@ class _cache(object):
 				condition = self._conditions[key]
 				del self._conditions[key]
 				condition.notifyAll()
+				return True
+		return False
 
 def generateKey(*objects):
 	s = []
@@ -408,12 +412,12 @@ def lookupResponse(key):
 def reserve(key):
 	if _fetchyCache is None:
 		return None
-	_fetchyCache.lock(key)
+	return _fetchyCache.lock(key)
 
 def cancel(key):
 	if _fetchyCache is None:
 		return None
-	_fetchyCache.unlock(key)
+	return _fetchyCache.unlock(key)
 
 def cacheResponse(key, response):
 	if _fetchyCache is None:

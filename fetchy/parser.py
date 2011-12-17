@@ -25,10 +25,10 @@ class _resourceManager(object):
 _fetchyResourceManager = _resourceManager()
 
 class _document(object):
-	_removeHtmlJunk = re.compile(u'^\\s*<!DOCTYPE[^<>]*>\\s*|<!--(?:(?!-->).)*-->', re.IGNORECASE | re.DOTALL)
+	_removeHtmlJunk = re.compile(u'^\\s*<!DOCTYPE[^<>]*>\\s*', re.IGNORECASE)
 	def __init__(self, response):
 		self._response = response
-		self._url = self._response.getUrl()
+		self._url = u(self._response.getUrl())
 		self._data = _document._removeHtmlJunk.sub(u'', self._response.getData())
 		self._soup = BeautifulSoup.BeautifulSoup(self._data)
 		self._fakeResources = {}
@@ -42,11 +42,20 @@ class _document(object):
 	def getSoup(self):
 		return self._soup
 	def resolveUrl(self, url):
-		return urlparse.urljoin(self._url, url)
+		return urlparse.urljoin(self._url, u(url))
+	def _getResourceRequest(self, resource):
+		return httpRequest.httpRequest('GET', resource)
 	def addResource(self, resource):
 		if resource not in self._resources:
 			self._resources.append(resource)
-			fetchy.backgroundCache(httpRequest.httpRequest('GET', resource))
+			fetchy.backgroundCache(self._getResourceRequest(resource))
+			return True
+		return False
+	def reserveResource(self, resource):
+		if resource not in self._resources:
+			self._resources.append(resource)
+			return fetchy.reserveRequest(self._getResourceRequest(resource))
+		return False
 	def streamResourceTo(self, url, target):
 		client.fetchToFunction(url, target)
 	def registerFakeResource(self, key, callback):

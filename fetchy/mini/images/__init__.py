@@ -1,6 +1,6 @@
 __all__ = ['auto', 'bmp', 'jpeg', 'png', 'tga']
 
-import auto
+import images
 
-process = auto.process
-init = auto.init
+process = images.process
+init = images.init
