@@ -1,72 +1,32 @@
 from lib import BeautifulSoup
-from lib import closure
+import threading
 import client
-import string
+import mini
+
+class document(object):
+	def __init__(self, response):
+		self._response = response
+		self._url = self._response.getUrl()
+		self._data = self._response.getData()
+		self._soup = BeautifulSoup.BeautifulSoup(self._data)
+		self._resourceLock = threading.RLock()
+		self._resources = []
+	def getUrl(self):
+		return self._url
+	def getResponse(self):
+		return self._response
+	def getData(self):
+		return self._data
+	def getSoup(self):
+		return self._soup
+	def addResource(self, resource):
+		with self._resourceLock:
+			if resource not in self._resources:
+				self._resources.append(resource)
+				client.asyncFetch(resource) # Todo: Pass to cache
 
 def parse(url):
-    client.asyncFetch(url, onSuccess=processHTML)
-    
-def processHTML(html):
-    print html
-    soup = BeautifulSoup.BeautifulSoup(html.getData())
-    javascriptContent = soup.findAll("script", type="text/javascript")
-    parseJavascript(javascriptContent, html.getUrl())
-    cssContent = soup.findAll("link", type="text/css")
-    cssContent.append(soup.findAll("style", type="text/css"))
-    parseCSS(cssContent)
-    images = soup.findAll("img")
-    parseImg(images, html.getUrl())
-    
-def parseJavascript(content, url):
-    #concatenate and fetch content
-    result = ""
-    for script in content:
-        try:#if tag has attribute source
-            src = script["src"]
-            result += str(client.fetch(src))
-        except:
-            tmp_int = script.string.find("<!--")
-            if(tmp_int < 0):#if there are no invalid elements for compression
-                result += script.string
-            else:
-                result += script.string[tmp_int+4:script.string.find("-->")]
+	return mini.process(document(client.fetch(url)))
 
-    #compression and minification
-    result = closure.compressJavascript(result)
-    result = "".join(["<script type=\"text/javascript\">",result,"</script>"])
-    print result  
-        
-def parseCSS(content):
-    for tag in content:
-        try:#if tag has attribute source
-            src = tag["href"]
-            client.asyncFetch(src)
-        except:
-            pass
-        
-def parseImg(content, url):
-    for image in content:
-        if(str(image["src"])[0] is "/"):#if image reference is relative
-            if("http://" in url):
-                tmp_int = url[7:].find("/")
-                if(tmp_int >= 0):#if there is a 3rd occurence of "/" in "url"
-                    client.asyncFetch(url[:7+tmp_int]+image["src"])
-                else:
-                    client.asyncFetch(url+"/"+image["src"])
-            else:
-                tmp_int = url.find("/")
-                if(tmp_int >= 0):#if there is an occurence of "/" in "url"
-                    client.asyncFetch(url[:tmp_int]+image["src"])
-                else:
-                    client.asyncFetch(url+"/"+image["src"])
-        else:
-            client.asyncFetch(image["src"])
-    #TODO put in cache, jpegtran, pngcrush, transform bmp and tga images
-    
-def parseHTML(content):
-     content = string.join(content.split()," ")
-
-#parse("http://stackoverflow.com/questions/1883980/find-the-nth-occurrence-of-substring-in-a-string")
-parse("http://www.w3schools.com/tags/tag_script.asp")
-    
-
+#print parse("http://stackoverflow.com/questions/1883980/find-the-nth-occurrence-of-substring-in-a-string")
+print parse("http://www.w3schools.com/tags/tag_script.asp")

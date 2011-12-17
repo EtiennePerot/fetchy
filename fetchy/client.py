@@ -37,7 +37,7 @@ class _urlRedirectHandler(urllib2.HTTPRedirectHandler):
 class _downloader(threading.Thread):
 	_bufferSize = 16384
 	_timeout = 10
-	_opener = None
+	_opener = urllib2.build_opener(_urlRedirectHandler)
 	def __init__(self, url, headers=None, data=None, onSuccess=None, onFailure=None, toFeed=None):
 		super(_downloader, self).__init__()
 		self._url = url
@@ -72,6 +72,7 @@ class _downloader(threading.Thread):
 			self._toFeed(data)
 		return data
 	def run(self):
+		clientInfo('Downloader running for', self._url)
 		headersDict = self._headers.asDictionary()
 		postData = self._getPostData()
 		req = urllib2.Request(self._url, postData, headersDict)
@@ -119,7 +120,6 @@ class _downloader(threading.Thread):
 		return result
 
 def init(bufferSize, timeout):
-	_downloader._opener = urllib2.build_opener(_urlRedirectHandler)
 	_downloader._bufferSize = bufferSize
 	_downloader._timeout = timeout
 
