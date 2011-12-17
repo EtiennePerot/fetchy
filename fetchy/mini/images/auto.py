@@ -10,10 +10,15 @@ def process(document):
 	images = soup('img')
 	for image in images:
 		try:
-			src = image['src']
-			url = urlparse.urljoin(url, src)
+			url = urlparse.urljoin(image['src'], src)
 			document.addResource(url)
 		except KeyError:
 			continue
 
 	#TODO put in cache, jpegtran, pngcrush, transform bmp and tga images
+
+def init(**kwargs):
+	png.init(**kwargs['png'])
+	jpeg.init(**kwargs['jpeg'])
+	bmp.init(**kwargs['bmp'])
+	tga.init(**kwargs['tga'])

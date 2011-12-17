@@ -1,0 +1,2 @@
+def init(useJpegtran):
+	pass

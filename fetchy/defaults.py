@@ -33,6 +33,7 @@ config = {
 				'pngoutStrategy': 2 # PNGOUT strategy (None to disable, or from 0 (slowest, very compressed) to 3 (fastest, not very compressed))
 			},
 			'jpeg': { # JPEG minification parameters
+				'useJpegtran': True # True to optimize JPEGs with jpegtran, False to let them be
 			},
 			'bmp': { # BMP minification parameters
 				'convertToPNG': True # True to convert bitmaps to PNG, False to let them be

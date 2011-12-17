@@ -22,11 +22,15 @@ class _script(object):
 			self._document.streamResourceTo(self._url, target)
 
 class _combinedScript(threading.Thread):
-	_compilerCommand = [
+	_useCompiler = True
+	_compilerCommand1 = [
 		'java', '-jar', os.path.join(os.path.dirname(os.path.realpath(__file__)), 'closure', 'compiler.jar'),
 		'--accept_const_keyword',
 		'--charset', 'UTF-8',
-		'--compilation_level', 'SIMPLE_OPTIMIZATIONS',
+		'--compilation_level'
+	]
+	_compilerLevel = 'SIMPLE_OPTIMIZATIONS'
+	_compilerCommand2 = [
 		'--logging_level', 'OFF',
 		'--warning_level', 'QUIET'
 	]
@@ -40,7 +44,13 @@ class _combinedScript(threading.Thread):
 	def add(self, script):
 		self._scripts.append(script)
 	def run(self):
-		process = subprocess.Popen(_combinedScript._compilerCommand, -1, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		process = subprocess.Popen(
+			_combinedScript._compilerCommand1 + [combinedScript._compilerLevel] + combinedScript._compilerCommand2,
+			- 1,
+			stdin=subprocess.PIPE,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE
+		)
 		for script in self._scripts:
 			script.writeTo(process.stdin.write)
 			process.stdin.write(';')
@@ -90,3 +100,8 @@ def process(document):
 	for script in scripts:
 		script.extract()
 	body.append(wrapperDiv)
+
+def init(closureLevel):
+	_combinedScript._useCompiler = closureLevel in ('WHITESPACE_ONLY', 'SIMPLE_OPTIMIZATIONS', 'ADVANCED_OPTIMIZATIONS')
+	if _combinedScript._useCompiler:
+		_combinedScript._compilerLevel = closureLevel

@@ -1,6 +1,7 @@
 from lib.utils import *
 from log import *
 import threading
+import mini
 import cache
 import parser
 import client
@@ -65,9 +66,10 @@ def run(*args, **kwargs):
 	setLogVerbose(config['verbose'])
 	setLogQuiet(config['quiet'])
 	info('Final configuration:', config)
+	mini.init(**config['mini'])
 	cache.init(**config['cache'])
 	client.init(**config['client'])
 	server.init(**config['server'])
 
 def getVersion():
-	return '0.1'
+	return u'0.1'
