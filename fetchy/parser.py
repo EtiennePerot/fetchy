@@ -3,8 +3,26 @@ from lib.utils import *
 import threading, urlparse
 import client
 import mini
+import httpRequest
 
-class document(object):
+class _resourceManager(object):
+	def __init__(self):
+		self._resources = {}
+		self._lock = threading.RLock()
+	def add(self, key, callback):
+		key = u(key)
+		with self._lock:
+			self._resources[key] = callback
+	def get(self, key):
+		key = u(key)
+		with self._lock:
+			if key in self._resources:
+				return self._resources[key]
+		return None
+
+_fetchyResourceManager = _resourceManager()
+
+class _document(object):
 	def __init__(self, response):
 		self._response = response
 		self._url = self._response.getUrl()
@@ -29,10 +47,7 @@ class document(object):
 	def streamResourceTo(self, url, target):
 		client.fetchToFunction(url, target)
 	def registerFakeResource(self, key, callback):
-		key = u(key)
-		if key not in self._fakeResources:
-			# Todo: Register key with global request handler
-			self._fakeResources[key] = callback
+		_fetchyResourceManager.add(key, callback)
 	def getFakeResourceUrl(self, key):
 		return u'http://fetchy/' + u(key)
 	def __enter__(self):
@@ -40,9 +55,29 @@ class document(object):
 	def __exit__(self):
 		self._soupLock.release()
 
-def parse(url):
-	doc = mini.process(document(client.fetch(url)))
-	return doc.getSoup().prettify() # Temp: Do not prettify when not debugging. Prettifying is useful when debugging only.
+def _processDocument(document, prettyify=False): # Temp: Do not prettify when not debugging. Prettifying is useful when debugging only.
+	mini.process(document)
+	finalSoup = document.getSoup()
+	if prettyify:
+		return finalSoup.prettify()
+	return unicode(finalSoup)
 
-#parse("http://stackoverflow.com/questions/1883980/find-the-nth-occurrence-of-substring-in-a-string")
-print parse("http://www.crummy.com/software/BeautifulSoup/documentation.html")
+def _parseUrl(url):
+	return _processDocument(_document(client.fetch(url)))
+
+def processResponse(response):
+	html = _processDocument(_document(response))
+	return httpRequest.httpResponse(response.getHeaders(), html)
+
+def internalRequest(request):
+	reqUrl = request.getUrl()
+	(scheme, netloc, path, params, query, fragment) = urlparse.urlparse(reqUrl, 'http')
+	key = path[1:]
+	data = _fetchyResourceManager.get(key)
+	if data is None:
+		return None
+	return data(key, reqUrl)
+
+def tempTest():
+	#print _parseUrl("http://stackoverflow.com/questions/1883980/find-the-nth-occurrence-of-substring-in-a-string")
+	print _parseUrl("http://www.crummy.com/software/BeautifulSoup/documentation.html")

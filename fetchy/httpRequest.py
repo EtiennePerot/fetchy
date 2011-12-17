@@ -1,6 +1,6 @@
 from lib.utils import *
 from lib._StringIO import StringIO
-import re, itertools
+import re, itertools, urlparse
 import fetchy
 
 _responseCodes = {
@@ -150,7 +150,7 @@ class headers(object):
 				self._headers.remove(h)
 				break
 	def getContentType(self):
-		return self.get(u'content-type')
+		return self.get(u'content-type').lower()
 	def isKeepAlive(self):
 		headerVal = self.get(u'connection')
 		if headerVal is not None:
@@ -231,6 +231,10 @@ class httpMessage(object):
 		return self._headers
 	def isKeepAlive(self):
 		return self._headers.isKeepAlive()
+	def getContentType(self):
+		return self._headers.getContentType()
+	def isParsable(self):
+		return u'text/html' in self.getContentType()
 	def __str__(self):
 		return self._data
 	def __unicode__(self):
@@ -245,6 +249,9 @@ class httpRequest(httpMessage):
 		return self._command
 	def getUrl(self):
 		return self._url
+	def isFetchyInternal(self):
+		info = urlparse.urlparse(self._url, 'http')
+		return info[1] and info[1] == 'fetchy'
 
 class httpResponse(httpMessage):
 	_fetchyPassthrough = ['Content-Encoding', 'Cookie', 'Etag', 'Date', 'Location'] # Todo: Pass more headers

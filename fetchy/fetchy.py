@@ -1,6 +1,7 @@
 from lib.utils import *
 from log import *
 import cache
+import parser
 import client
 import server
 
@@ -10,7 +11,13 @@ def handleRequest(request):
 		cachedResponse = cache.lookupResponse(cacheKey)
 		if cachedResponse is not None:
 			return cachedResponse
-	response = client.request(request).toFetchyResponse(allowKeepAlive=request.isKeepAlive())
+	if request.isFetchyInternal(): # Internal objects created by the parser
+		response = parser.internalRequest(request)
+	else: # Regular objects
+		response = client.request(request)
+		if response.isParsable():
+			response = parser.processResponse(response)
+	response = response.toFetchyResponse(allowKeepAlive=request.isKeepAlive())
 	if response is not None and cacheKey is not None:
 		cache.cacheResponse(cacheKey, response)
 		return cache.lookupResponse(cacheKey).toFetchyResponse()

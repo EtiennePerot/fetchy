@@ -55,6 +55,7 @@ class _downloader(threading.Thread):
 		self._onFailure = onFailure
 		self._toFeed = toFeed
 	def _fail(self, errorCode=None):
+		clientWarn('Client failed on', self._url, 'with error code', errorCode)
 		if self._onFailure is not None:
 			self._onFailure(self, errorCode)
 		if errorCode is None:
@@ -117,6 +118,7 @@ class _downloader(threading.Thread):
 		result = httpRequest.httpResponse(responseHeaders, contents, responseCode=handle.getcode(), finalUrl=handle.geturl())
 		if self._onSuccess is not None:
 			self._onSuccess(result)
+		clientInfo('Client successful for', self._url)
 		return result
 
 def init(bufferSize, timeout):

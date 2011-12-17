@@ -1,6 +1,7 @@
 import os, re, hashlib, subprocess, threading
-from lib import BeautifulSoup
-from lib.utils import *
+from ... import httpRequest
+from ...lib import BeautifulSoup
+from ...lib.utils import *
 
 class _script(object):
 	_removeHtmlComments = re.compile(u'^\\s*/*\\s*<!--[^\\r\\n]*|/*\\s*-->\\s*$')
@@ -11,9 +12,9 @@ class _script(object):
 		self._isText = self._text is not None
 		if self._isText:
 			self._text = _script._removeHtmlComments.sub(u'', self._text).strip()
-			key.update(u'text' + self._text)
+			key.update('text' + self._text.encode('utf8'))
 		else:
-			key.update(u'url' + self._url)
+			key.update('url' + self._url.encode('utf8'))
 	def writeTo(self, target):
 		if self._isText:
 			target(self._text)
@@ -32,46 +33,32 @@ class _combinedScript(threading.Thread):
 	def __init__(self):
 		super(_combinedScript, self).__init__()
 		self._scripts = []
-		self._doneAdding = False
 		self._lock = threading.RLock()
-		self._event = threading.Condition(self._lock)
+		self._doneCondition = threading.Condition(self._lock)
 		self._contents = u''
-		self._process = subprocess.Popen(_combinedScript._compilerCommand, -1, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		self._doneProcessing = False
-		self.start()
 	def add(self, script):
-		with self._lock:
-			self._scripts.append(script)
-			self._event.notifyAll()
-	def doneAdding(self):
-		with self._lock:
-			self._doneAdding = True
-			self._event.notifyAll()
+		self._scripts.append(script)
 	def run(self):
-		self._lock.acquire()
-		while not self._doneAdding or len(self._scripts):
-			while not self._doneAdding and not len(self._scripts):
-				self._event.wait()
-			if self._doneAdding and not len(self._scripts):
-				break
-			script = self._scripts.pop(0)
-			self._lock.release()
-			script.writeTo(self._process.stdin.write)
-			self._process.stdin.write(';')
-			self._lock.acquire()
-		(self._contents, _) = self._process.communicate()
-		self._contents = self._contents.decode('utf8').strip()
-		self._doneProcessing = True
-		self._event.notifyAll()
-		self._lock.release()
+		process = subprocess.Popen(_combinedScript._compilerCommand, -1, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		for script in self._scripts:
+			script.writeTo(process.stdin.write)
+			process.stdin.write(';')
+		(contents, _) = process.communicate()
+		contents = contents.decode('utf8').strip()
+		with self._lock:
+			self._contents = contents
+			self._doneProcessing = True
+			self._doneCondition.notifyAll()
 	def getData(self):
 		with self._lock:
 			while not self._doneProcessing:
-				self._event.wait()
+				self._doneCondition.wait()
 		return self._contents
 
-def _getCombinedScript(combinedScript, *args):
-	return _getCombinedScript.getData()
+def _getCombinedScript(combinedScript, key, url):
+	data = combinedScript.getData()
+	return httpRequest.httpResponse({'content-type':'text/javascript'}, data, responseCode=200, finalUrl=url)
 
 def process(document):
 	soup = document.getSoup()
@@ -80,17 +67,21 @@ def process(document):
 		body = soup('html')
 		if not len(body):
 			return
-	body = body[0]
 	scripts = soup('script')
+	if not len(scripts):
+		return
+	body = body[0]
 	combinedScript = _combinedScript()
 	scriptKey = hashlib.md5()
 	for script in scripts:
-		if 'src' in script:
-			combinedScript.add(_script(document, key=scriptKey, url=document.resolveUrl(script['src'])))
-		elif hasattr(script, 'string'):
-			combinedScript.add(_script(document, key=scriptKey, text=script['text']))
-	combinedScript.doneAdding()
-	scriptKey = u'js-' + scriptKey.hexdigest()
+		try:
+			src = script['src']
+			combinedScript.add(_script(document, key=scriptKey, url=document.resolveUrl(src)))
+		except KeyError:
+			if hasattr(script, 'string') and script.string is not None:
+				combinedScript.add(_script(document, key=scriptKey, text=script.string))
+	combinedScript.start()
+	scriptKey = scriptKey.hexdigest() + u'.js'
 	document.registerFakeResource(scriptKey, curry(_getCombinedScript, combinedScript))
 	scriptTag = BeautifulSoup.Tag(soup, 'script', {'src': document.getFakeResourceUrl(scriptKey)})
 	for script in scripts:

@@ -32,3 +32,7 @@ class curry(object):
 		else:
 			kw = kwargs or self._kwargs
 		return self._func(*(self._pending + args), **kw)
+	def __str__(self):
+		return unicode(self).encode('utf8')
+	def __unicode__(self):
+		return u'Curry(' + u(self._func) + u', *(' + u(self._pending) + u'), **(' + u(self._kwargs) + u'))'
