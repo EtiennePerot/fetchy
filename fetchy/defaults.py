@@ -1,8 +1,9 @@
 # Default fetchy settings
 config = {
-	'verbose': False, # Verbose mode on or off
 	'quiet': False, # True to make the process completely quiet
+	'verbose': False, # Verbose mode on or off for main log
 	'server': { # Options related to the listening server
+		'verbose': False, # Verbose mode on or off for server log
 		'port': 9010, # Port to listen on
 		'reverseProxy': None, # If fetchy is meant to be used as a reverse proxy, this should contain the hostname:portNumber of the actual web server behind it.
 		'timeout': 5.0, # Timeout to wait for client uploading data to proxy (seconds)
@@ -10,11 +11,13 @@ config = {
 		'bufferSize': 1024, # Buffer size for server forwarding data to client (bytes)
 	},
 	'client': { # Options related to the HTTP client
+		'verbose': False, # Verbose mode on or off for client log
 		'userAgent': 'Mozilla/5.0 (Ubuntu; X11; Linux x86_64; rv:8.0) Gecko/20100101 Firefox/8.0', # User-Agent header to use when requesting content from other web servers
 		'timeout': 5.0, # Timeout for outgoing HTTP requests (seconds)
 		'bufferSize': 16384, # Buffer size for client HTTP requests (bytes)
 	},
 	'cache': { # Options related to the cache
+		'verbose': False, # Verbose mode on or off for cache log
 		'gzipCompression': 6, # Strength of gzip compression for cached files (from 0 (don't use compression) to 9 (best compression))
 		'gzipMinSize': 128, # Minimum size (in bytes) for gzip compression to be valuable
 		'gzipMaxSize': 128 * 1024 * 1024, # Maximum size (in bytes) after which gzip compression becomes too expensive (large files are likely to be in a compressed format already)
@@ -24,6 +27,7 @@ config = {
 		'bufferSize': 32768, # Buffer size for cache I/O operations
 	},
 	'mini': { # Minification parameters
+		'verbose': False, # Verbose mode on or off for mini log
 		'js': { # Javascript minification parameters
 			'closureLevel': 'SIMPLE_OPTIMIZATIONS' # Closure compiler optimization level (None to disable, or one of WHITESPACE_ONLY, SIMPLE_OPTIMIZATIONS, ADVANCED_OPTIMIZATIONS)
 		},

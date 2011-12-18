@@ -58,7 +58,7 @@ def handleRequest(request):
 	return response
 
 def run(*args, **kwargs):
-	info('Starting with args', args, 'and kwargs', kwargs)
+	mainInfo('Starting with args', args, 'and kwargs', kwargs)
 	config = kwargs
 	if len(args) and type(args[0]) is type({}):
 		config = args[0]
@@ -76,9 +76,9 @@ def run(*args, **kwargs):
 		return params
 	from defaults import config as defaultConfig
 	config = resolveConfig(config, defaultConfig)
-	setLogVerbose(config['verbose'])
+	mainVerbose(config['verbose'])
 	setLogQuiet(config['quiet'])
-	info('Final configuration:', config)
+	mainInfo('Final configuration:', config)
 	mini.init(**config['mini'])
 	cache.init(**config['cache'])
 	client.init(**config['client'])

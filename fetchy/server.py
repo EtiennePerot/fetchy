@@ -116,7 +116,8 @@ class _runThread(threading.Thread):
 	def run(self):
 		self._server.serve_forever()
 
-def init(port, reverseProxy, timeout, chunkSize, bufferSize):
+def init(verbose, port, reverseProxy, timeout, chunkSize, bufferSize):
+	serverVerbose(verbose)
 	serverInfo('Starting server...')
 	_fetchyProxy._timeout = timeout
 	_fetchyProxy._bufferSize = bufferSize

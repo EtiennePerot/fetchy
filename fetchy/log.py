@@ -27,43 +27,46 @@ class _littleLogger(object):
 		self.log(logging.ERROR, *args, **kwargs)
 	def setLevel(self, level):
 		self._log.setLevel(level)
+	def setVerbose(self, verbose):
+		if verbose:
+			self.setLevel(logging.INFO)
+		else:
+			self.setLevel(logging.WARN)
 
 _mainLogger = _littleLogger('main')
-log = _mainLogger.log
-info = _mainLogger.info
-warn = _mainLogger.warn
-error = _mainLogger.error
+mainLog = _mainLogger.log
+mainInfo = _mainLogger.info
+mainWarn = _mainLogger.warn
+mainError = _mainLogger.error
+mainVerbose = _mainLogger.setVerbose
 
 _miniLogger = _littleLogger('mini')
 miniLog = _miniLogger.log
 miniInfo = _miniLogger.info
 miniWarn = _miniLogger.warn
 miniError = _miniLogger.error
+miniVerbose = _miniLogger.setVerbose
 
 _serverLogger = _littleLogger('server')
 serverLog = _serverLogger.log
 serverInfo = _serverLogger.info
 serverWarn = _serverLogger.warn
 serverError = _serverLogger.error
+serverVerbose = _serverLogger.setVerbose
 
 _clientLogger = _littleLogger('client')
 clientLog = _clientLogger.log
 clientInfo = _clientLogger.info
 clientWarn = _clientLogger.warn
 clientError = _clientLogger.error
+clientVerbose = _clientLogger.setVerbose
 
 _cacheLogger = _littleLogger('cache')
 cacheLog = _cacheLogger.log
 cacheInfo = _cacheLogger.info
 cacheWarn = _cacheLogger.warn
 cacheError = _cacheLogger.error
-
-def setLogVerbose(verbose):
-	level = logging.WARN
-	if verbose:
-		level = logging.INFO
-	for l in _allLogs:
-		l.setLevel(level)
+cacheVerbose = _cacheLogger.setVerbose
 
 def setLogQuiet(quiet):
 	global _logEnabled

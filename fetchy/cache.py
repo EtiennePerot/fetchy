@@ -356,8 +356,9 @@ def generateKey(*objects):
 
 _fetchyCache = None
 
-def init(gzipCompression, gzipMinSize, gzipMaxSize, diskCacheSize, memoryCacheSize, directory, bufferSize):
+def init(verbose, gzipCompression, gzipMinSize, gzipMaxSize, diskCacheSize, memoryCacheSize, directory, bufferSize):
 	global _bufferSize, _fetchyCache
+	cacheVerbose(verbose)
 	_bufferSize = bufferSize
 	tempDir = u(tempfile.gettempdir())
 	actualDirectory = u(directory).replace(u'%tmp%', tempDir).encode()

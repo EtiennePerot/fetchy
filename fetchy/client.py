@@ -134,7 +134,8 @@ class _downloader(threading.Thread):
 		clientInfo('Client successful for', self._url)
 		return result
 
-def init(userAgent, bufferSize, timeout):
+def init(verbose, userAgent, bufferSize, timeout):
+	clientVerbose(verbose)
 	_downloader._userAgent = userAgent
 	_downloader._bufferSize = bufferSize
 	_downloader._timeout = timeout

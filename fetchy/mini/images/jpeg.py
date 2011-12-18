@@ -30,6 +30,7 @@ class _jpegtran(threading.Thread):
 		data = ''
 		while process.poll() is None:
 			data += process.stdout.read(_jpegtran._bufferSize)
+		miniInfo('jpegtran returned', process.returncode, 'over', self._url)
 		if not process.returncode:
 			self._document.cacheResource(self._url, data, headers={'content-type': 'image/jpeg'})
 		else:

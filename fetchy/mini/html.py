@@ -1,7 +1,9 @@
 import css, js, images
 from ..lib import BeautifulSoup
+from ..log import *
 
 def init(**kwargs):
+	miniVerbose(kwargs['verbose'])
 	js.init(**kwargs['js'])
 	#css.init(**kwargs['css'])
 	images.init(**kwargs['images'])
