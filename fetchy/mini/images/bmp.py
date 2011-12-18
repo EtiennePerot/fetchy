@@ -1,5 +1,8 @@
-def process(document, url):
-	pass
+import re
+from converter import buildConverter
 
-def init(convertToPNG):
-	pass
+_bmpRegex = re.compile(u'.bmp$', re.IGNORECASE)
+bmpConverter = buildConverter('BMP', lambda x : _bmpRegex.sub('.png', x))
+
+process = bmpConverter.process
+init = bmpConverter.init

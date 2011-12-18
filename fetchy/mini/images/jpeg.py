@@ -40,7 +40,7 @@ class _jpegtran(threading.Thread):
 		except:
 			pass
 
-def process(document, url):
+def process(document, image, url):
 	if not _enabled:
 		return False
 	return _jpegtran(document, url).start

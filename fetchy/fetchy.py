@@ -12,6 +12,8 @@ def _getResponse(request):
 		response = parser.internalRequest(request)
 	else: # Regular objects
 		response = client.request(request)
+		if response is None:
+			return None
 		if response.isParsable():
 			response = parser.processResponse(response)
 	return response.toFetchyResponse(allowKeepAlive=request.isKeepAlive())
@@ -73,6 +75,9 @@ def run(*args, **kwargs):
 					params[k] = u(params[k])
 				else:
 					params[k] = defaultParams[k]
+		for k in params:
+			if k not in defaultParams:
+				del params[k]
 		return params
 	from defaults import config as defaultConfig
 	config = resolveConfig(config, defaultConfig)

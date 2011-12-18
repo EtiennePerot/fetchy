@@ -44,10 +44,10 @@ config = {
 				'bufferSize': 16384 # Buffer size to use when communicating with the jpegtran process
 			},
 			'bmp': { # BMP minification parameters
-				'convertToPNG': True # True to convert bitmaps to PNG, False to let them be
+				'enabled': True # True to convert bitmaps to PNG, False to let them be
 			},
 			'tga': { # TGA minification parameters
-				'convertToPNG': True # True to convert Targas to PNG, False to let them be
+				'enabled': True # True to convert Targas to PNG, False to let them be
 			}
 		}
 	}
