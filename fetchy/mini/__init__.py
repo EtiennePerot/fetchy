@@ -1,3 +1,6 @@
 __all__ = ['html', 'css', 'js', 'images']
 
-from html import *
+import html
+
+process = html.process
+init = html.init

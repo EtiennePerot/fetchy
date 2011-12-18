@@ -3,7 +3,9 @@ from .. import httpRequest
 from ..lib import BeautifulSoup
 from ..lib.utils import *
 from .. import client
-from ..lib import cssmin
+
+def init():
+	pass
 
 class _style(object):
 	_removeHtmlComments = re.compile(u'^\\s*/*\\s*<!--[^\\r\\n]*|/*\\s*-->\\s*$')
@@ -22,7 +24,7 @@ class _style(object):
 			target(self._text)
 		else:
 			self._document.streamResourceTo(self._url, target)
-
+			
 class _combinedStyle(threading.Thread):
 	def __init__(self):
 		super(_combinedStyle, self).__init__()
@@ -37,10 +39,9 @@ class _combinedStyle(threading.Thread):
 		contents = ""
 		for style in self._styles:
 			if style._url is not None:
-				contents += str(client.fetch(style._url))
+				contents+=str(client.fetch(style._url))
 			if style._text is not None:
-				contents += style._text.encode('utf8')
-		contents = cssmin.cssmin(contents)
+				contents+=style._text.encode('utf8')
 		with self._lock:
 			self._contents = contents
 			self._doneProcessing = True
@@ -76,7 +77,7 @@ def process(document):
 				combinedStyle.add(_style(document, key=styleKey, url=document.resolveUrl(src)))
 		except KeyError:
 			pass
-	for style in styles:
+	for style in styles:		
 		if hasattr(style, 'string') and style.string is not None:
 			combinedStyle.add(_style(document, key=styleKey, text=style.string))
 	combinedStyle.start()
@@ -88,6 +89,3 @@ def process(document):
 	for link in linksStylesheets:
 		link.extract()
 	body.append(styleTag)
-
-def init(enabled):
-	pass

@@ -1,1 +1,1 @@
-from core import run
+from fetchy import run
