@@ -1,51 +1,22 @@
 from lib.utils import *
 from log import *
 import threading
+import cachecontrol
 import mini
 import cache
-import parser
 import client
 import server
 
 def _getResponse(request):
 	if request.isFetchyInternal(): # Internal objects created by the parser
-		response = parser.internalRequest(request)
+		response = mini.internalRequest(request)
 	else: # Regular objects
 		response = client.request(request)
 		if response is None:
 			return None
 		if response.isParsable():
-			response = parser.processResponse(response)
+			response = mini.processResponse(response)
 	return response.toFetchyResponse(allowKeepAlive=request.isKeepAlive())
-
-def cacheResponse(key, response):
-	if key is not None and response is not None:
-		cache.cacheResponse(key, response.toFetchyResponse())
-
-def _backgroundCache(request):
-	key = cache.generateRequestKey(request)
-	response = _getResponse(request)
-	if response is None:
-		cache.cancel(key)
-	else:
-		cacheResponse(key, response)
-
-def reserveRequest(request):
-	cacheKey = cache.generateRequestKey(request)
-	if cacheKey is not None:
-		return cache.reserve(cacheKey)
-	return False
-
-def cancelRequest(request):
-	cacheKey = cache.generateRequestKey(request)
-	if cacheKey is not None:
-		return cache.cancel(cacheKey)
-	return False
-
-def backgroundCache(request):
-	if reserveRequest(request):
-		threading.Thread(target=curry(_backgroundCache, request)).start()
-	return True
 
 def handleRequest(request):
 	cacheKey = cache.generateRequestKey(request)
@@ -84,6 +55,7 @@ def run(*args, **kwargs):
 	mainVerbose(config['verbose'])
 	setLogQuiet(config['quiet'])
 	mainInfo('Final configuration:', config)
+	cachecontrol.init(_getResponse)
 	mini.init(**config['mini'])
 	cache.init(**config['cache'])
 	client.init(**config['client'])
