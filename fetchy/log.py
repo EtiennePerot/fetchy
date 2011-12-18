@@ -34,6 +34,12 @@ info = _mainLogger.info
 warn = _mainLogger.warn
 error = _mainLogger.error
 
+_miniLogger = _littleLogger('mini')
+miniLog = _miniLogger.log
+miniInfo = _miniLogger.info
+miniWarn = _miniLogger.warn
+miniError = _miniLogger.error
+
 _serverLogger = _littleLogger('server')
 serverLog = _serverLogger.log
 serverInfo = _serverLogger.info

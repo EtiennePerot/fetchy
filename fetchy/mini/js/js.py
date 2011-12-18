@@ -2,7 +2,9 @@ import os, re, hashlib, subprocess, threading
 from ... import httpRequest
 from ...lib import BeautifulSoup
 from ...lib.utils import *
+from ...lib.which import which
 from ...lib._StringIO import StringIO
+from ...log import *
 
 class _script(object):
 	_removeHtmlComments = re.compile(u'^\\s*/*\\s*<!--[^\\r\\n]*|/*\\s*-->\\s*$')
@@ -51,7 +53,7 @@ class _combinedScript(threading.Thread):
 	def add(self, script):
 		self._scripts.append(script)
 	def run(self):
-		if self._useCompiler:
+		if _combinedScript._useCompiler:
 			process = subprocess.Popen(
 				_combinedScript._compilerCommand1 + [_combinedScript._compilerLevel] + _combinedScript._compilerCommand2,
 				- 1,
@@ -115,6 +117,20 @@ def process(document):
 	body.append(wrapperDiv)
 
 def init(closureLevel):
+	if closureLevel is None:
+		miniInfo('Closure compiler disabled.')
+		combinedScript._useCompiler = False
+		return
+	java = which('java')
+	if not java:
+		java = which('javaw')
+		if not java:
+			_combinedScript._useCompiler = False
+			miniWarn('java not found in PATH! The Closure compiler will be disabled.')
+			return
 	_combinedScript._useCompiler = closureLevel in ('WHITESPACE_ONLY', 'SIMPLE_OPTIMIZATIONS', 'ADVANCED_OPTIMIZATIONS')
 	if _combinedScript._useCompiler:
 		_combinedScript._compilerLevel = closureLevel
+		miniInfo('java found at', java, '- Closure compiler enabled with level', closureLevel)
+	else:
+		miniWarn('Closure compiler was given a wrong level:', closureLevel)
