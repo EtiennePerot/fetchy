@@ -1,16 +1,19 @@
 from ...lib.which import which
+from ...lib._StringIO import StringIO
+from ...lib.utils import *
 from ...log import *
-import threading, subprocess
+import os, threading, subprocess, tempfile
 
 _enabled = False
 
 class _jpegtran(threading.Thread):
-	_jpegtranCommand = [
+	_jpegtranCommand = (
 		'jpegtran',
 		'-o',
 		'-copy', 'none',
-		'-progressive'
-	]
+		'-progressive',
+		'-outfile', '-'
+	)
 	_bufferSize = 16384
 	def __init__(self, document, url):
 		super(_jpegtran, self).__init__()
@@ -18,23 +21,24 @@ class _jpegtran(threading.Thread):
 		self._url = url
 	def run(self):
 		miniInfo('jpegtran running over', self._url)
+		(tempHandle, tempName) = tempfile.mkstemp(prefix='fetchy-jpeg-', suffix='.jpg')
+		self._document.streamResourceTo(self._url, curry(os.write, tempHandle))
+		os.close(tempHandle)
 		process = subprocess.Popen(
-			_jpegtran._jpegtranCommand,
+			_jpegtran._jpegtranCommand + (tempName,),
 			_jpegtran._bufferSize,
-			stdin=subprocess.PIPE,
 			stdout=subprocess.PIPE
 		)
-		def close(*args):
-			process.stdin.close()
-		self._document.streamResourceTo(self._url, process.stdin.write, synchronous=False, onSuccess=close, onFailure=close)
-		data = ''
-		while process.poll() is None:
-			data += process.stdout.read(_jpegtran._bufferSize)
+		(data, _) = process.communicate()
 		miniInfo('jpegtran returned', process.returncode, 'over', self._url)
 		if not process.returncode:
 			self._document.cacheResource(self._url, data, headers={'content-type': 'image/jpeg'})
 		else:
 			self._document.cancelResource(self._url)
+		try:
+			os.remove(tempName)
+		except:
+			pass
 
 def process(document, url):
 	if not _enabled:

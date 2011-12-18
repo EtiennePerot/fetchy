@@ -129,7 +129,7 @@ class _downloader(threading.Thread):
 		if self._onSuccess is not None:
 			try:
 				self._onSuccess(result)
-			except:
+			except Exception, e:
 				pass
 		clientInfo('Client successful for', self._url)
 		return result

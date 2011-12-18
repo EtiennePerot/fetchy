@@ -87,40 +87,55 @@ def _getCombinedScript(combinedScript, key, url):
 	data = combinedScript.getData()
 	return httpRequest.httpResponse({'content-type':'text/javascript'}, data, responseCode=200, finalUrl=url)
 
+_enabled = True
+
 def process(document):
 	soup = document.getSoup()
+	scripts = soup('script')
+	if not len(scripts):
+		return
 	body = soup('body')
 	if not len(body):
 		body = soup('html')
 		if not len(body):
 			return
-	scripts = soup('script')
-	if not len(scripts):
-		return
 	body = body[0]
-	combinedScript = _combinedScript()
-	scriptKey = hashlib.md5()
-	for script in scripts:
-		try:
-			src = script['src']
-			combinedScript.add(_script(document, key=scriptKey, url=document.resolveUrl(src)))
-		except KeyError:
-			if hasattr(script, 'string') and script.string is not None:
-				combinedScript.add(_script(document, key=scriptKey, text=script.string))
-	combinedScript.start()
-	scriptKey = scriptKey.hexdigest() + u'.js'
-	document.registerFakeResource(scriptKey, curry(_getCombinedScript, combinedScript))
-	scriptTag = BeautifulSoup.Tag(soup, u'script', {u'src': document.getFakeResourceUrl(scriptKey)})
-	scriptTag.append(BeautifulSoup.NavigableString(u''))
-	wrapperDiv = BeautifulSoup.Tag(soup, u'div', {u'style': u'display:none'})
-	wrapperDiv.append(scriptTag)
-	for script in scripts:
-		script.extract()
-	body.append(wrapperDiv)
+	if _enabled:
+		combinedScript = _combinedScript()
+		scriptKey = hashlib.md5()
+		for script in scripts:
+			try:
+				src = script['src']
+				combinedScript.add(_script(document, key=scriptKey, url=document.resolveUrl(src)))
+			except KeyError:
+				if hasattr(script, 'string') and script.string is not None:
+					combinedScript.add(_script(document, key=scriptKey, text=script.string))
+		combinedScript.start()
+		scriptKey = scriptKey.hexdigest() + u'.js'
+		document.registerFakeResource(scriptKey, curry(_getCombinedScript, combinedScript))
+		scriptTag = BeautifulSoup.Tag(soup, u'script', {u'src': document.getFakeResourceUrl(scriptKey)})
+		scriptTag.append(BeautifulSoup.NavigableString(u''))
+		wrapperDiv = BeautifulSoup.Tag(soup, u'div', {u'style': u'display:none'})
+		wrapperDiv.append(scriptTag)
+		for script in scripts:
+			script.extract()
+		body.append(wrapperDiv)
+	else:
+		for script in scripts:
+			try:
+				src = script['src']
+				document.addResource(document.resolveUrl(src))
+			except KeyError:
+				continue
 
-def init(closureLevel):
+def init(enabled, closureLevel):
+	global _enabled
+	_enabled = enabled
+	if not _enabled:
+		miniInfo('Closure compiler disabled, JS concatenation disabled.')
+		return
 	if closureLevel is None:
-		miniInfo('Closure compiler disabled.')
+		miniInfo('Closure compiler disabled, but JS concatenation still enabled.')
 		combinedScript._useCompiler = False
 		return
 	java = which('java')

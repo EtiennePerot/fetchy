@@ -29,13 +29,15 @@ config = {
 	'mini': { # Minification parameters
 		'verbose': False, # Verbose mode on or off for mini log
 		'js': { # Javascript minification parameters
+			'enabled': False, # Enable JS modifications or not
 			'closureLevel': 'SIMPLE_OPTIMIZATIONS' # Closure compiler optimization level (None to disable, or one of WHITESPACE_ONLY, SIMPLE_OPTIMIZATIONS, ADVANCED_OPTIMIZATIONS)
 		},
 		'css': { # CSS minification parameters
 		},
 		'images': { # Image minification parameters
 			'png': { # PNG minification parameters
-				'pngoutStrategy': 2 # PNGOUT strategy (None to disable, or from 0 (slowest, very compressed) to 3 (fastest, not very compressed))
+				'pngoutStrategy': 2, # PNGOUT strategy (None to disable, or from 0 (slowest, very compressed) to 3 (fastest, not very compressed))
+				'bufferSize': 16384 # Buffer size to use when communicating with the pngout process
 			},
 			'jpeg': { # JPEG minification parameters
 				'useJpegtran': True, # True to optimize JPEGs with jpegtran, False to let them be
