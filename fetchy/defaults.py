@@ -33,6 +33,11 @@ config = {
 			'closureLevel': 'SIMPLE_OPTIMIZATIONS' # Closure compiler optimization level (None to disable, or one of WHITESPACE_ONLY, SIMPLE_OPTIMIZATIONS, ADVANCED_OPTIMIZATIONS)
 		},
 		'css': { # CSS minification parameters
+			'enabled': True # Enable CSS modifications or not
+		},
+		'html': { # HTML minification parameters
+			'enabled': True, # Enable HTML modifications or not
+			'hardcore': True # Try hard to minimize the HTML size
 		},
 		'images': { # Image minification parameters
 			'png': { # PNG minification parameters

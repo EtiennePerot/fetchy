@@ -69,17 +69,16 @@ class _document(object):
 		_fetchyResourceManager.add(key, callback)
 	def getFakeResourceUrl(self, key):
 		return u'http://fetchy/' + u(key)
-	def __enter__(self):
-		self._soupLock.acquire()
-	def __exit__(self):
-		self._soupLock.release()
+	def __str__(self):
+		return unicode(self).encode('utf8')
+	def __unicode__(self):
+		return mini.minify(unicode(self._soup))
 
 def _processDocument(document, prettify=False):
 	mini.process(document)
-	finalSoup = document.getSoup()
 	if prettify:
-		return finalSoup.prettify()
-	return unicode(finalSoup)
+		return document.getSoup().prettify()
+	return unicode(document)
 
 def processResponse(response):
 	html = _processDocument(_document(response))

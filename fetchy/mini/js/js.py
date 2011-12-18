@@ -123,8 +123,7 @@ def process(document):
 	else:
 		for script in scripts:
 			try:
-				src = script['src']
-				document.addResource(document.resolveUrl(src))
+				document.addResource(document.resolveUrl(script['src']))
 			except KeyError:
 				continue
 
