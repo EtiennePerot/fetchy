@@ -3,6 +3,8 @@ from .. import httpRequest
 from ..lib import BeautifulSoup
 from ..lib.utils import *
 from .. import client
+from ..lib import cssCompiler
+
 
 def init():
 	pass
@@ -42,6 +44,7 @@ class _combinedStyle(threading.Thread):
 				contents+=str(client.fetch(style._url))
 			if style._text is not None:
 				contents+=style._text.encode('utf8')
+		contents = cssCompiler.cssmin(contents)
 		with self._lock:
 			self._contents = contents
 			self._doneProcessing = True
