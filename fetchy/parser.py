@@ -2,6 +2,7 @@ from lib import BeautifulSoup
 from lib.utils import *
 import threading, re, urlparse
 import fetchy
+import cache
 import client
 import mini
 import httpRequest
@@ -25,11 +26,10 @@ class _resourceManager(object):
 _fetchyResourceManager = _resourceManager()
 
 class _document(object):
-	_removeHtmlJunk = re.compile(u'^\\s*<!DOCTYPE[^<>]*>\\s*', re.IGNORECASE)
 	def __init__(self, response):
 		self._response = response
 		self._url = u(self._response.getUrl())
-		self._data = _document._removeHtmlJunk.sub(u'', self._response.getData())
+		self._data = self._response.getData()
 		self._soup = BeautifulSoup.BeautifulSoup(self._data)
 		self._fakeResources = {}
 		self._resources = []
@@ -56,8 +56,15 @@ class _document(object):
 			self._resources.append(resource)
 			return fetchy.reserveRequest(self._getResourceRequest(resource))
 		return False
-	def streamResourceTo(self, url, target):
-		client.fetchToFunction(url, target)
+	def cancelResource(self, resource):
+		if resource in self._resources:
+			return fetchy.cancelRequest(self._getResourceRequest(resource))
+	def cacheResource(self, resource, data, headers={}, responseCode=200):
+		if resource in self._resources:
+			response = httpRequest.httpResponse(headers, data, finalUrl=resource, responseCode=responseCode)
+			return fetchy.cacheResponse(cache.generateRequestKey(self._getResourceRequest(resource)), response)
+	def streamResourceTo(self, resource, target, **kwargs):
+		client.fetch(resource, toFeed=target, **kwargs)
 	def registerFakeResource(self, key, callback):
 		_fetchyResourceManager.add(key, callback)
 	def getFakeResourceUrl(self, key):
@@ -67,10 +74,10 @@ class _document(object):
 	def __exit__(self):
 		self._soupLock.release()
 
-def _processDocument(document, prettyify=False):
+def _processDocument(document, prettify=False):
 	mini.process(document)
 	finalSoup = document.getSoup()
-	if prettyify:
+	if prettify:
 		return finalSoup.prettify()
 	return unicode(finalSoup)
 

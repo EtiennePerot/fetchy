@@ -8,17 +8,13 @@ def processImage(document, url):
 	if dot != -1:
 		extension = path[dot + 1:].lower().strip()
 		if extension == u'png':
-			png.process(document, url)
-			return True
+			return png.process(document, url)
 		if extension in (u'jpg', u'jpeg'):
-			jpeg.process(document, url)
-			return True
+			return jpeg.process(document, url)
 		if extension == u'bmp':
-			bmp.process(document, url)
-			return True
+			return bmp.process(document, url)
 		if extension == u'tga':
-			tga.process(document, url)
-			return True
+			return tga.process(document, url)
 	return False
 
 def process(document):
@@ -27,7 +23,11 @@ def process(document):
 	for image in images:
 		try:
 			url = document.resolveUrl(image['src'])
-			if not processImage(document, url):
+			func = processImage(document, url)
+			if func:
+				document.reserveResource(url)
+				func()
+			else:
 				document.addResource(url)
 		except KeyError:
 			continue

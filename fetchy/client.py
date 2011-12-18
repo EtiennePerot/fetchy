@@ -35,6 +35,7 @@ class _urlRedirectHandler(urllib2.HTTPRedirectHandler):
 	http_error_302 = http_error_303 = http_error_307 = http_error_301
 
 class _downloader(threading.Thread):
+	_userAgent = 'fetchy'
 	_bufferSize = 16384
 	_timeout = 10
 	_opener = urllib2.build_opener(_urlRedirectHandler)
@@ -47,6 +48,7 @@ class _downloader(threading.Thread):
 			self._headers = httpRequest.headers(headers)
 		self._headers['Accept-Encoding'] = 'gzip, deflate, identity'
 		self._headers['Cache-Control'] = 'no-cache'
+		self._headers['User-Agent'] = _downloader._userAgent
 		del self._headers['Connection']
 		del self._headers['if-modified-since']
 		del self._headers['etag']
@@ -75,7 +77,10 @@ class _downloader(threading.Thread):
 		return '&'.join(s)
 	def _feed(self, data):
 		if self._toFeed is not None:
-			self._toFeed(data)
+			try:
+				self._toFeed(data)
+			except:
+				pass
 		return data
 	def run(self):
 		clientInfo('Downloader running for', self._url)
@@ -122,26 +127,24 @@ class _downloader(threading.Thread):
 				contents += self._feed(data)
 		result = httpRequest.httpResponse(responseHeaders, contents, responseCode=handle.getcode(), finalUrl=handle.geturl())
 		if self._onSuccess is not None:
-			self._onSuccess(result)
+			try:
+				self._onSuccess(result)
+			except:
+				pass
 		clientInfo('Client successful for', self._url)
 		return result
 
-def init(bufferSize, timeout):
+def init(userAgent, bufferSize, timeout):
+	_downloader._userAgent = userAgent
 	_downloader._bufferSize = bufferSize
 	_downloader._timeout = timeout
 
 def request(request):
 	return _downloader(request.getUrl(), request.getHeaders(), request.getData()).run()
 
-def fetch(url, headers=None, data=None):
-	return _downloader(url, headers=headers, data=data).run()
-
-def asyncFetch(url, onSuccess=None, onFailure=None, headers=None, data=None):
-	_downloader(url, headers=headers, data=data, onSuccess=onSuccess, onFailure=onFailure).start()
-
-def fetchToFunction(url, toFeed, synchronous=True, headers=None, data=None):
-	downloader = _downloader(url, headers=headers, data=data, toFeed=toFeed)
+def fetch(url, headers=None, data=None, toFeed=None, synchronous=True, onSuccess=None, onFailure=None):
+	downloader = _downloader(url, headers=headers, data=data, toFeed=toFeed, onSuccess=onSuccess, onFailure=onFailure)
 	if synchronous:
-		downloader.run()
+		return downloader.run()
 	else:
 		downloader.start()

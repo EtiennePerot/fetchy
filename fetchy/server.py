@@ -49,7 +49,7 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 			self.send_error(404, 'Socket error: ' + u(errMsg))
 			return None
 		return sock
-	def handle_one_request(self):
+	def handle_one_request(self): # Workaround Python bug in BaseHTTPRequestHandler
 		try:
 			BaseHTTPServer.BaseHTTPRequestHandler.handle_one_request(self)
 		except AttributeError:
@@ -58,7 +58,7 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 		serverInfo(self.command, self.path, 'on', threading.current_thread().name)
 		(scheme, netloc, path, params, query, fragment) = urlparse.urlparse(self.path, 'http')
 		if scheme != 'http' or fragment or not netloc:
-			self.send_error(400, "Invalid url: " + self.path)
+			self.send_error(400, 'Invalid url: ' + self.path)
 	def _writeResponse(self, response):
 		if response is None:
 			serverWarn('Error happened while serving', self.path)

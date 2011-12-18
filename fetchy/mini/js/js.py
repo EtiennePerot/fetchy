@@ -64,13 +64,15 @@ class _combinedScript(threading.Thread):
 			for script in self._scripts:
 				script.writeTo(process.stdin.write)
 				process.stdin.write(';\n')
-			(contents, _) = process.communicate()
-			contents = contents.decode('utf8').strip()
-		else:
-			contents = u''
-			for script in self._scripts:
-				contents += u(script.getData()).strip() + u';\n'
-			contents = contents.strip()
+			contents = process.communicate()
+			if not process.returncode:
+				contents = contents[0].decode('utf8').strip()
+				return
+			# If the process didn't return 0, continue and use regular string method
+		contents = u''
+		for script in self._scripts:
+			contents += u(script.getData()).strip() + u';\n'
+		contents = contents.strip()
 		with self._lock:
 			self._contents = contents
 			self._doneProcessing = True

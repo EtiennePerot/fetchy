@@ -10,6 +10,6 @@ def process(document):
 	js.process(document)
 	css.process(document)
 	images.process(document)
-	for comment in document.getSoup().findAll(text=lambda x:isinstance(x, BeautifulSoup.Comment)):
+	for comment in document.getSoup().findAll(lambda x : isinstance(x, BeautifulSoup.Comment)):
 		comment.extract()
 	return document

@@ -10,6 +10,7 @@ config = {
 		'bufferSize': 1024, # Buffer size for server forwarding data to client (bytes)
 	},
 	'client': { # Options related to the HTTP client
+		'userAgent': 'Mozilla/5.0 (Ubuntu; X11; Linux x86_64; rv:8.0) Gecko/20100101 Firefox/8.0', # User-Agent header to use when requesting content from other web servers
 		'timeout': 5.0, # Timeout for outgoing HTTP requests (seconds)
 		'bufferSize': 16384, # Buffer size for client HTTP requests (bytes)
 	},
@@ -33,7 +34,8 @@ config = {
 				'pngoutStrategy': 2 # PNGOUT strategy (None to disable, or from 0 (slowest, very compressed) to 3 (fastest, not very compressed))
 			},
 			'jpeg': { # JPEG minification parameters
-				'useJpegtran': True # True to optimize JPEGs with jpegtran, False to let them be
+				'useJpegtran': True, # True to optimize JPEGs with jpegtran, False to let them be
+				'bufferSize': 16384 # Buffer size to use when communicating with the jpegtran process
 			},
 			'bmp': { # BMP minification parameters
 				'convertToPNG': True # True to convert bitmaps to PNG, False to let them be

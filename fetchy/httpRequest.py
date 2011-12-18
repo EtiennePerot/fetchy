@@ -38,6 +38,7 @@ _responseCodes = {
 	415: u'Unsupported Media Type',
 	416: u'Requested Range Not Satisfiable',
 	417: u'Expectation Failed',
+	418: u'I\'m a teapot', # :)
 	500: u'Internal Server Error',
 	501: u'Not Implemented',
 	502: u'Bad Gateway',

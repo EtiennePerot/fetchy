@@ -16,18 +16,28 @@ def _getResponse(request):
 			response = parser.processResponse(response)
 	return response.toFetchyResponse(allowKeepAlive=request.isKeepAlive())
 
+def cacheResponse(key, response):
+	if key is not None and response is not None:
+		cache.cacheResponse(key, response.toFetchyResponse())
+
 def _backgroundCache(request):
 	key = cache.generateRequestKey(request)
 	response = _getResponse(request)
 	if response is None:
 		cache.cancel(key)
 	else:
-		cache.cacheResponse(key, response)
+		cacheResponse(key, response)
 
 def reserveRequest(request):
 	cacheKey = cache.generateRequestKey(request)
 	if cacheKey is not None:
 		return cache.reserve(cacheKey)
+	return False
+
+def cancelRequest(request):
+	cacheKey = cache.generateRequestKey(request)
+	if cacheKey is not None:
+		return cache.cancel(cacheKey)
 	return False
 
 def backgroundCache(request):
@@ -42,9 +52,9 @@ def handleRequest(request):
 		if cachedResponse is not None:
 			return cachedResponse
 	response = _getResponse(request)
+	cacheResponse(cacheKey, response)
 	if response is not None and cacheKey is not None:
-		cache.cacheResponse(cacheKey, response)
-		return cache.lookupResponse(cacheKey).toFetchyResponse()
+		return cache.lookupResponse(cacheKey)
 	return response
 
 def run(*args, **kwargs):
