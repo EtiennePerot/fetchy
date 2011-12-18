@@ -86,4 +86,6 @@ def process(document):
 	styleTag = BeautifulSoup.Tag(soup, 'style', {'src': document.getFakeResourceUrl(styleKey)})
 	for style in styles:
 		style.extract()
+	for link in linksStylesheets:
+		link.extract()
 	body.append(styleTag)
