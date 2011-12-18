@@ -2,7 +2,7 @@ from log import *
 from lib.utils import *
 import httpRequest
 import fetchy
-import urlparse, socket, threading, BaseHTTPServer, SocketServer, select, time
+import urlparse, socket, threading, BaseHTTPServer, SocketServer, select
 
 class _bufferedWriter(object):
 	def __init__(self, stream, writeFunction=None, buffer=4096):
@@ -38,7 +38,7 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 		address = (server, 80)
 		splitPort = server.find(':')
 		if splitPort != -1:
-			address = server[:splitPort], int(server[splitPort + 1:])
+			address = (server[:splitPort], int(server[splitPort + 1:]))
 		try:
 			sock.connect(address)
 		except socket.error, e:
@@ -49,6 +49,23 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 			self.send_error(404, 'Socket error: ' + u(errMsg))
 			return None
 		return sock
+	def _passthrough(self, destinationSocket):
+		connection = self.connection
+		inputs = [connection, destinationSocket]
+		outputs = []
+		while True:
+			try:
+				(inStreams, _, errStreams) = select.select(inputs, outputs, inputs, _fetchyProxy._timeout)
+				if errStreams and len(errStreams):
+					break
+				if len(inStreams):
+					for c in inStreams:
+						otherC = filter(lambda x : x != c, inputs)[0]
+						data = c.recv(16384)
+						if data:
+							otherC.send(data)
+			except:
+				break
 	def handle_one_request(self): # Workaround Python bug in BaseHTTPRequestHandler
 		try:
 			BaseHTTPServer.BaseHTTPRequestHandler.handle_one_request(self)
@@ -103,6 +120,22 @@ class _fetchyProxy(BaseHTTPServer.BaseHTTPRequestHandler):
 		finally:
 			try:
 				self.finish()
+			except:
+				pass
+	def do_CONNECT(self):
+		try:
+			soc = self._connect(self.path)
+			if soc:
+				self.wfile.write(self.protocol_version + ' 200 Connection established\r\n')
+				self.wfile.write('Proxy-agent: fetchy/' + fetchy.getVersion() + '\r\n\r\n')
+				self._passthrough(soc)
+		finally:
+			try:
+				soc.close()
+			except:
+				pass
+			try:
+				self.connection.close()
 			except:
 				pass
 
