@@ -29,7 +29,7 @@ config = {
 	'mini': { # Minification parameters
 		'verbose': False, # Verbose mode on or off for mini log
 		'js': { # Javascript minification parameters
-			'enabled': False, # Enable JS modifications or not
+			'enabled': True, # Enable JS modifications or not
 			'closureLevel': 'SIMPLE_OPTIMIZATIONS' # Closure compiler optimization level (None to disable, or one of WHITESPACE_ONLY, SIMPLE_OPTIMIZATIONS, ADVANCED_OPTIMIZATIONS)
 		},
 		'css': { # CSS minification parameters

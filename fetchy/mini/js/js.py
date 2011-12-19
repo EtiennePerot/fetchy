@@ -22,7 +22,7 @@ class _script(object):
 		if self._isText:
 			return self._text
 		s = StringIO()
-		self._document.streamResourceTo(self._url, s)
+		self._document.streamResourceTo(self._url, s.write)
 		return s.getvalue()
 	def writeTo(self, target):
 		if self._isText:
