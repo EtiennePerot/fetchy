@@ -43,7 +43,7 @@ class _combinedStyle(threading.Thread):
 	def run(self):
 		contents = u''
 		for style in self._styles:
-			contents += style.getData()
+			contents += u(style.getData())
 		contents = cssmin.cssmin(contents)
 		with self._lock:
 			self._contents = contents
