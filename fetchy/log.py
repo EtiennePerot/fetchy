@@ -17,8 +17,15 @@ class _littleLogger(object):
 		self._log = logging.getLogger(name)
 		_allLogs.append(self)
 	def log(self, level, *args, **kwargs):
-		if _logEnabled:
+		isForced = 'force' in kwargs and kwargs['force']
+		if _logEnabled or isForced:
+			if isForced:
+				oldLevel = self._log.level
+				self._log.setLevel(logging.DEBUG)
+				del kwargs['force']
 			self._log.log(level, _joinStr(args), **kwargs)
+			if isForced:
+				self._log.setLevel(oldLevel)
 	def info(self, *args, **kwargs):
 		self.log(logging.INFO, *args, **kwargs)
 	def warn(self, *args, **kwargs):
@@ -27,11 +34,14 @@ class _littleLogger(object):
 		self.log(logging.ERROR, *args, **kwargs)
 	def setLevel(self, level):
 		self._log.setLevel(level)
-	def setVerbose(self, verbose):
-		if verbose:
-			self.setLevel(logging.INFO)
-		else:
-			self.setLevel(logging.WARN)
+	def setVerbose(self, verbose=None):
+		oldLevel = self._log.level
+		if verbose is not None:
+			if verbose:
+				self.setLevel(logging.INFO)
+			else:
+				self.setLevel(logging.WARN)
+		return oldLevel
 
 _mainLogger = _littleLogger('main')
 mainLog = _mainLogger.log
@@ -67,6 +77,13 @@ cacheInfo = _cacheLogger.info
 cacheWarn = _cacheLogger.warn
 cacheError = _cacheLogger.error
 cacheVerbose = _cacheLogger.setVerbose
+
+_parserLogger = _littleLogger('parser')
+parserLog = _parserLogger.log
+parserInfo = _parserLogger.info
+parserWarn = _parserLogger.warn
+parserError = _parserLogger.error
+parserVerbose = _parserLogger.setVerbose
 
 def setLogQuiet(quiet):
 	global _logEnabled
