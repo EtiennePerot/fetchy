@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys, fetchy.parser
 from fetchy.lib.utils import *
 
