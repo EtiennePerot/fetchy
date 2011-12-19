@@ -27,7 +27,7 @@ config = {
 		'bufferSize': 32768, # Buffer size for cache I/O operations
 	},
 	'mini': { # Minification parameters
-		'verbose': True, # Verbose mode on or off for mini log
+		'verbose': False, # Verbose mode on or off for mini log
 		'js': { # Javascript minification parameters
 			'enabled': False, # Enable JS modifications or not
 			'closureLevel': 'SIMPLE_OPTIMIZATIONS' # Closure compiler optimization level (None to disable, or one of WHITESPACE_ONLY, SIMPLE_OPTIMIZATIONS, ADVANCED_OPTIMIZATIONS)

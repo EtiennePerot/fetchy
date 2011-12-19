@@ -1,6 +1,8 @@
 import os, re, hashlib, subprocess, threading
 from .. import httpRequest
 from ..lib import BeautifulSoup, cssmin
+from ..lib._StringIO import StringIO
+from ..log import *
 from ..lib.utils import *
 from .. import client
 
@@ -16,6 +18,12 @@ class _style(object):
 			key.update('text' + self._text.encode('utf8'))
 		else:
 			key.update('url' + self._url.encode('utf8'))
+	def getData(self):
+		if self._isText:
+			return self._text
+		s = StringIO()
+		self._document.streamResourceTo(self._url, s.write)
+		return s.getvalue()
 	def writeTo(self, target):
 		if self._isText:
 			target(self._text)
@@ -35,10 +43,7 @@ class _combinedStyle(threading.Thread):
 	def run(self):
 		contents = u''
 		for style in self._styles:
-			if style._url is not None:
-				contents += u(client.fetch(style._url).getData())
-			if style._text is not None:
-				contents += style._text
+			contents += style.getData()
 		contents = cssmin.cssmin(contents)
 		with self._lock:
 			self._contents = contents
@@ -65,7 +70,8 @@ def process(document):
 			return
 	head = head[0]
 	styles = soup('style')
-	linksStylesheets = soup('link', rel='stylesheet')
+	linksSet = set()
+	linksStylesheets = [x for x in (soup('link', rel='stylesheet') + soup('link', type='text/css')) if x not in linksSet and not linksSet.add(x)]
 	if not len(styles) and not len(linksStylesheets):
 		return
 	if _enabled:
@@ -73,8 +79,7 @@ def process(document):
 		styleKey = hashlib.md5()
 		for link in linksStylesheets:
 			try:
-				src = link['href']
-				combinedStyle.add(_style(document, key=styleKey, url=document.resolveUrl(src)))
+				combinedStyle.add(_style(document, key=styleKey, url=document.resolveUrl(link['href'])))
 			except KeyError:
 				pass
 		for style in styles:
@@ -83,9 +88,9 @@ def process(document):
 		combinedStyle.start()
 		styleKey = styleKey.hexdigest() + u'.css'
 		document.registerFakeResource(styleKey, curry(_getCombinedStyle, combinedStyle))
-		styleTag = BeautifulSoup.Tag(soup, 'link', {'rel': 'stylesheet', 'href': document.getFakeResourceUrl(styleKey)})
+		styleTag = BeautifulSoup.Tag(soup, 'link', {'rel': 'stylesheet', 'type': 'text/css', 'href': document.getFakeResourceUrl(styleKey)})
 		for style in styles + linksStylesheets:
-			link.extract()
+			style.extract()
 		head.append(styleTag)
 	else:
 		for style in linksStylesheets:
@@ -97,3 +102,7 @@ def process(document):
 def init(enabled):
 	global _enabled
 	enabled = _enabled
+	if _enabled:
+		miniInfo('CSS concatenation enabled.')
+	else:
+		miniInfo('CSS concatenation disabled.')

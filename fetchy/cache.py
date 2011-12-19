@@ -114,19 +114,25 @@ class _cachedItem(object):
 		self._pristineSize = None
 		self._compressibleSize = None
 		self._gzipped = False
-		self._gzipLock = threading.RLock()
-		self._gzipDone = threading.Condition(self._gzipLock)
+		self._finalized = False
+		self._finalizedLock = threading.RLock()
+		self._finalizedCondition = threading.Condition(self._finalizedLock)
 	def _finalize(self):
 		if self._pristineSize is not None and self._compressibleSize is not None:
 			self._size = self._pristineSize + self._compressibleSize
 		self._compressedSize = self._compressibleSize
-		if self._size is not None and _cachedItem.gzipMinSize <= self._size <= _cachedItem.gzipMaxSize:
-			threading.Thread(target=curry(self._gzipMonitor, _cachedItem.gzipCompression)).start()
+		if self._size is not None:
+			if _cachedItem.gzipMinSize <= self._size <= _cachedItem.gzipMaxSize:
+				threading.Thread(target=curry(self._gzipMonitor, _cachedItem.gzipCompression)).start()
+			else:
+				with self._finalizedLock:
+					self._finalized = True
+					self._finalizedCondition.notifyAll()
 	def _waitForGzip(self, waitForGzip=True):
 		if waitForGzip:
-			with self._gzipLock:
-				while not self._gzipped:
-					self._gzipDone.wait()
+			with self._finalizedLock:
+				while not self._finalized:
+					self._finalizedCondition.wait()
 	def getKey(self):
 		return self._key
 	def getSize(self):
@@ -143,8 +149,9 @@ class _cachedItem(object):
 		pass
 	def _gzipMonitor(self, compression):
 		self._backgroundGzip(compression)
-		with self._gzipLock:
-			self._gzipDone.notifyAll()
+		with self._finalizedLock:
+			self._finalized = True
+			self._finalizedCondition.notifyAll()
 	def _backgroundGzip(self, compression):
 		pass
 
@@ -165,11 +172,11 @@ class memoryCachedItem(_cachedItem):
 		return self._pristineSize
 	def getCompressibleData(self, waitForGzip=False):
 		self._waitForGzip(waitForGzip)
-		with self._gzipLock:
+		with self._finalizedLock:
 			return _gzippedData(self._gzipped, self._compressible, self._compressedSize)
 	def writeCompressibleTo(self, target, waitForGzip=False):
 		self._waitForGzip(waitForGzip)
-		with self._gzipLock:
+		with self._finalizedLock:
 			target.write(self._data)
 			return (self._gzipped, self._compressedSize)
 	def _backgroundGzip(self, compression):
@@ -178,10 +185,10 @@ class memoryCachedItem(_cachedItem):
 		gzipHandle.write(self._compressible)
 		gzipHandle.close()
 		s = s.getvalue()
-		with self._gzipLock:
+		with self._finalizedLock:
+			self._gzipped = True
 			self._compressible = s
 			self._compressedSize = len(s)
-			self._gzipped = True
 
 class diskCachedItem(_cachedItem):
 	_cacheDirectory = None
@@ -212,7 +219,7 @@ class diskCachedItem(_cachedItem):
 			return self._filename + u'.gz.cache'
 		return self._filename + u'.raw.cache'
 	def toCacheable(self):
-		with self._gzipLock:
+		with self._finalizedLock:
 			return cacheableItem(
 				self._key,
 				_streamableData(open(self._properFilename(False), 'rb'), knownSize=self._pristineSize, closeAfter=True),
@@ -238,7 +245,7 @@ class diskCachedItem(_cachedItem):
 	def getCompressibleData(self, waitForGzip=False):
 		self._waitForGzip(waitForGzip)
 		data = ''
-		with self._gzipLock:
+		with self._finalizedLock:
 			handle = open(self._properFilename(True), 'rb')
 			i = handle.read(_bufferSize)
 			while len(i):
@@ -248,7 +255,7 @@ class diskCachedItem(_cachedItem):
 			return gzippedData(self._gzipped, data, knownSize=self._compressedSize)
 	def writeCompressibleTo(self, target, waitForGzip=False):
 		self._waitForGzip(waitForGzip)
-		with self._gzipLock:
+		with self._finalizedLock:
 			handle = open(self._properFilename(True), 'rb')
 			i = handle.read(_bufferSize)
 			while len(i):
@@ -267,7 +274,7 @@ class diskCachedItem(_cachedItem):
 			i = fHandle.read(_bufferSize)
 		fHandle.close()
 		gzipHandle.close()
-		with self._gzipLock:
+		with self._finalizedLock:
 			self._gzipped = True
 			self._compressedSize = os.path.getsize(gzipFile)
 			os.remove(rawFile)

@@ -105,8 +105,7 @@ def process(document):
 		scriptKey = hashlib.md5()
 		for script in scripts:
 			try:
-				src = script['src']
-				combinedScript.add(_script(document, key=scriptKey, url=document.resolveUrl(src)))
+				combinedScript.add(_script(document, key=scriptKey, url=document.resolveUrl(script['src'])))
 			except KeyError:
 				if hasattr(script, 'string') and script.string is not None:
 					combinedScript.add(_script(document, key=scriptKey, text=script.string))
