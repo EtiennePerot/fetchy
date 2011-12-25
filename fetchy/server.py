@@ -149,13 +149,15 @@ class _runThread(threading.Thread):
 	def run(self):
 		self._server.serve_forever()
 
-def init(verbose, port, reverseProxy, timeout, chunkSize, bufferSize):
+def init(verbose, address, port, reverseProxy, timeout, chunkSize, bufferSize):
 	serverVerbose(verbose)
 	serverInfo('Starting server...')
 	_fetchyProxy._timeout = timeout
 	_fetchyProxy._bufferSize = bufferSize
 	httpRequest.init(chunkSize=chunkSize)
-	server = _threadedHTTPServer(('', port), _fetchyProxy)
+	if not address:
+		address = ''
+	server = _threadedHTTPServer((address, port), _fetchyProxy)
 	serverInfo('Server listening on socket', server.socket.getsockname())
 	_runThread(server).start()
 	serverInfo('Server thread spawned.')

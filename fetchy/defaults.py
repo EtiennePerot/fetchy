@@ -4,6 +4,7 @@ config = {
 	'verbose': False, # Verbose mode on or off for main log
 	'server': { # Options related to the listening server
 		'verbose': False, # Verbose mode on or off for server log
+		'address': 'localhost', # Address to listen on. Use an empty string to listen on all interfaces (not recommended)
 		'port': 9010, # Port to listen on
 		'reverseProxy': None, # If fetchy is meant to be used as a reverse proxy, this should contain the hostname:portNumber of the actual web server behind it.
 		'timeout': 5.0, # Timeout to wait for client uploading data to proxy (seconds)
@@ -18,7 +19,7 @@ config = {
 	},
 	'cache': { # Options related to the cache
 		'verbose': False, # Verbose mode on or off for cache log
-		'gzipCompression': 6, # Strength of gzip compression for cached files (from 0 (don't use compression) to 9 (best compression))
+		'gzipCompression': 9, # Strength of gzip compression for cached files (from 0 (don't use compression) to 9 (best compression))
 		'gzipMinSize': 128, # Minimum size (in bytes) for gzip compression to be valuable
 		'gzipMaxSize': 128 * 1024 * 1024, # Maximum size (in bytes) after which gzip compression becomes too expensive (large files are likely to be in a compressed format already)
 		'diskCacheSize': 128 * 1024 * 1024, # Disk cache size (bytes)
@@ -29,7 +30,7 @@ config = {
 	'mini': { # Minification parameters
 		'verbose': False, # Verbose mode on or off for mini log
 		'js': { # Javascript minification parameters
-			'enabled': True, # Enable JS modifications or not
+			'enabled': False, # Enable JS modifications or not
 			'closureLevel': 'SIMPLE_OPTIMIZATIONS' # Closure compiler optimization level (None to disable, or one of WHITESPACE_ONLY, SIMPLE_OPTIMIZATIONS, ADVANCED_OPTIMIZATIONS)
 		},
 		'css': { # CSS minification parameters

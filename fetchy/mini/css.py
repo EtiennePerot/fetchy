@@ -101,7 +101,7 @@ def process(document):
 
 def init(enabled):
 	global _enabled
-	enabled = _enabled
+	_enabled = enabled
 	if _enabled:
 		miniInfo('CSS concatenation enabled.')
 	else:
